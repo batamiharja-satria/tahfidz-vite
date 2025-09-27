@@ -66,20 +66,24 @@ export default function Register() {
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
-      
-            <div style={{ padding: "0.0rem", textAlign: "center" }}>
-    {/* ✅ Logo App di atas */}
-    <img 
-      src="/logo.png" 
-      alt="App Logo" 
-      style={{ width: "200px", height: "200px", marginBottom: "0rem" }}
-    />
-  </div>
-      <center><h3>Daftar</h3></center>
+      <div style={{ padding: "0.0rem", textAlign: "center" }}>
+        {/* ✅ Logo App di atas */}
+        <img
+          src="/logo.png"
+          alt="App Logo"
+          style={{ width: "200px", height: "200px", marginBottom: "0rem" }}
+        />
+      </div>
+      <center>
+        <h3>Daftar</h3>
+      </center>
       <br></br>
-      
-      
-      <form style={{ marginBottom: "0.5rem" }} className="form-group" onSubmit={handleRegister}>
+
+      <form
+        style={{ marginBottom: "0.5rem" }}
+        className="form-group"
+        onSubmit={handleRegister}
+      >
         <div style={{ position: "relative", marginBottom: "1rem" }}>
           <input
             className="form-control"
@@ -123,14 +127,13 @@ export default function Register() {
           {loading ? "Loading..." : "Daftar"}
         </button>
       </form>
-      
-       <p>
+
+      <p>
         Sudah punya akun? <Link to="/">Masuk</Link>
       </p>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
       {info && <p style={{ color: "green" }}>{info}</p>}
-     
     </div>
   );
 }

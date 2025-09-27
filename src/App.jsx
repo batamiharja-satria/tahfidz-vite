@@ -2,7 +2,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import AppHome from "./pages/AppHome";
+import App2 from "./pages/app/App2";
 
 export default function App() {
   return (
@@ -10,8 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/app" element={<AppHome />} />
-        {/* ❌ Hapus ResetPassword, karena sekarang pakai reset-password.html */}
+        <Route path="/app2/*" element={<App2 />} />
       </Routes>
     </Router>
   );

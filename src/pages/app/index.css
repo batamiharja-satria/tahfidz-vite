@@ -1,0 +1,76 @@
+/* index.css + App.css */
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f8f9fa;
+  margin: 0;
+  padding: 0;
+}
+
+ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+li a {
+  text-decoration: none;
+  color: #007bff;
+}
+
+/* Modal styling */
+
+/* Ayat item list */
+.ayat-list {
+  list-style: none;
+  padding: 0;
+}
+
+.ayat-item {
+  margin: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.view-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Ayat arab full in modal */
+.arab-full {
+  font-size: 32px;
+  text-align: center;
+}
+
+/* Button for modal */
+.close-button {
+  margin-top: 20px;
+}
+
+/* Layout */
+.app-container {
+  position: relative;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+}
+
+.app-header {
+  height: 50px;
+  z-index: 1000;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+/* Content scrollable area */
+.content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-top: 56px; /* biar tidak ketutup header */
+}

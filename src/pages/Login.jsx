@@ -70,7 +70,7 @@ export default function Login() {
       setCooldown(null);
       localStorage.removeItem("lastResetRequest");
 
-      navigate("/app");
+      navigate("/app2");
     }
   };
 
@@ -217,8 +217,8 @@ export default function Login() {
         {resetLoading
           ? "Mengirim..."
           : resetSuccess
-          ? "Cek email atau folder spam 📩"
-          : "Lupa Password?"}
+            ? "Cek email atau folder spam 📩"
+            : "Lupa Password?"}
       </button>
 
       {/* ℹ️ Pesan kalau masih cooldown */}
