@@ -1,58 +1,54 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button } from "react-bootstrap";
-import { VolumeUp } from "react-bootstrap-icons";
-import suratList from "../data/SuratConfig";
+import suratList from "../data/SuratConfig"; // ✅ naik 1 folder ke data
 import { X } from "react-bootstrap-icons";
 
-// Fungsi timeout manual
-const fetchWithTimeout = (url, options = {}, timeout = 5000) => {
-  return Promise.race([
-    fetch(url, options),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), timeout),
-    ),
-  ]);
-};
+const cacheAudioMap = new Map();
 
 function AyatModal({ show, onHide, ayat, suratId }) {
   const [isLoading, setIsLoading] = useState(false);
   const [audio, setAudio] = useState(null);
 
-  const suratData = suratList.find((s) => s.id === suratId?.toString());
-
+  const suratData = suratList.find((s) => s.nomor === suratId);
   if (!suratData) {
-    console.error(
-      "Surat tidak ditemukan. Cek SuratConfig.js dan pastikan ID valid.",
-    );
+    console.error("Surat tidak ditemukan di SuratConfig.js");
     return null;
   }
 
-  const folderName = suratData.path.replace("/", "");
-  const suratNumber = suratData.id.padStart(3, "0");
-  const ayatNumber = ayat.number.toString().padStart(3, "0");
-  const audioUrl = `https://archive.org/download/download-murottal-misyari-rasyid-per-ayat-surah-${folderName}-mp3/${suratNumber}${ayatNumber}.mp3`;
+  // pakai nomor asli (tanpa padStart)
+  const suratNumber = suratData.nomor;
+  const ayatNumber = ayat.nomor; // ✅ konsisten pakai .nomor bukan .number
+
+  // URL audio The Quran Project
+  const audioUrl = `https://the-quran-project.github.io/Quran-Audio/Data/1/${suratNumber}_${ayatNumber}.mp3`;
+  const audioKey = `${suratId}_${ayatNumber}`;
 
   const handlePlayAudio = async () => {
     setIsLoading(true);
 
     try {
-      const response = await fetchWithTimeout(
-        audioUrl,
-        { method: "HEAD" },
-        5000,
-      );
-      if (!response.ok) throw new Error("Audio tidak tersedia.");
+      if (cacheAudioMap.has(audioKey)) {
+        const cachedAudio = cacheAudioMap.get(audioKey);
+        cachedAudio.currentTime = 0;
+        cachedAudio.play();
+        setAudio(cachedAudio);
+        setIsLoading(false);
+        return;
+      }
 
       const newAudio = new Audio(audioUrl);
+      cacheAudioMap.set(audioKey, newAudio);
+
       newAudio.onplaying = () => setIsLoading(false);
       newAudio.onerror = () => {
         setIsLoading(false);
-        alert("Gagal memutar audio. Periksa koneksi internet.");
+        alert("Gagal memutar audio.");
       };
+
       newAudio.play();
       setAudio(newAudio);
     } catch (error) {
-      alert("Audio gagal dimuat. Periksa koneksi internet.");
+      alert("Audio gagal dimuat.");
       setIsLoading(false);
     }
   };
@@ -73,7 +69,8 @@ function AyatModal({ show, onHide, ayat, suratId }) {
           className="mb-4 fs-2"
           style={{ fontFamily: "Scheherazade", lineHeight: "2.4rem" }}
         >
-          {ayat.text}
+          {/* ✅ tampilkan ayat Arab, fallback ke text */}
+          {ayat.ar || ayat.text}
         </div>
         <div className="d-flex justify-content-center gap-3 align-items-center">
           <button

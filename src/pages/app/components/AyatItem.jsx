@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { EyeFill } from "react-bootstrap-icons";
 import AyatModal from "./AyatModal";
-import suratList from "../data/SuratConfig";
+import suratConfig from "../data/SuratConfig";
 import { Form } from "react-bootstrap";
 
+// ubah angka ke Arab
 const toArabicNumber = (number) => {
   const arabicDigits = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
   return number
@@ -13,21 +14,15 @@ const toArabicNumber = (number) => {
     .join("");
 };
 
-const fetchWithTimeout = (url, options = {}, timeout = 5000) => {
-  return Promise.race([
-    fetch(url, options),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("timeout")), timeout),
-    ),
-  ]);
-};
+// cache audio supaya gak download ulang
+const audioCache = new Map();
 
-const AyatItem = ({ ayat, suratId }) => {
+const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isHafal, setIsHafal] = useState(false);
 
-  const key = `hafalan_${suratId}_${ayat.number}`;
+  const key = `hafalan_${suratId}_${ayat.nomor}`;
 
   useEffect(() => {
     const stored = localStorage.getItem(key);
@@ -43,35 +38,56 @@ const AyatItem = ({ ayat, suratId }) => {
   const playAudio = async () => {
     setIsLoading(true);
 
-    const suratData = suratList.find((s) => s.id === suratId.toString());
-    const folderName = suratData.path.replace("/", "");
-    const suratNumber = suratData.id.padStart(3, "0");
-    const ayatNumber = ayat.number.toString().padStart(3, "0");
+    // cari surat dari config
+    const suratData = suratConfig.find((s) => s.nomor === suratId);
+    if (!suratData) {
+      alert("Surat tidak ditemukan di SuratConfig.js");
+      setIsLoading(false);
+      return;
+    }
 
-    const audioUrl = `https://archive.org/download/download-murottal-misyari-rasyid-per-ayat-surah-${folderName}-mp3/${suratNumber}${ayatNumber}.mp3`;
+    // pakai nomor asli (tanpa padStart)
+    const suratNumber = suratData.nomor;
+    const ayatNumber = ayat.nomor;
+
+    // URL audio The Quran Project
+    const audioUrl = `https://the-quran-project.github.io/Quran-Audio/Data/1/${suratNumber}_${ayatNumber}.mp3`;
 
     try {
-      const response = await fetchWithTimeout(
-        audioUrl,
-        { method: "HEAD" },
-        5000,
-      );
-      if (!response.ok) throw new Error("Audio tidak tersedia.");
+      if (audioCache.has(audioUrl)) {
+        const cachedAudio = audioCache.get(audioUrl);
+        cachedAudio.currentTime = 0;
+        cachedAudio.play();
+        setIsLoading(false);
+        return;
+      }
 
       const audio = new Audio(audioUrl);
-      audio.play();
+      audioCache.set(audioUrl, audio);
+
       audio.onplaying = () => setIsLoading(false);
+      audio.onerror = () => {
+        setIsLoading(false);
+        alert("Gagal memutar audio.");
+      };
+
+      audio.play();
     } catch (error) {
-      alert("Gagal memutar audio. Periksa koneksi internet.");
+      alert("Audio gagal dimuat.");
       setIsLoading(false);
     }
   };
 
-  const firstTwoWords = ayat.text.split(" ").slice(0, 2).join(" ");
+  // ✅ tentukan jumlah kata yang ditampilkan
+  let displayedText = "";
+  if (wordCount > 0) {
+    displayedText = ayat.ar.split(" ").slice(0, wordCount).join(" ");
+  }
 
   return (
     <div className="d-flex justify-content-between align-items-center border p-2 mb-2">
       <div className="d-flex align-items-center">
+        {/* tombol lihat detail */}
         <button
           className="btn btn-outline-secondary btn-sm me-2"
           onClick={() => setShowModal(true)}
@@ -79,6 +95,7 @@ const AyatItem = ({ ayat, suratId }) => {
           <EyeFill />
         </button>
 
+        {/* tombol audio */}
         <button
           className="btn btn-outline-secondary btn-sm me-2"
           onClick={playAudio}
@@ -87,6 +104,7 @@ const AyatItem = ({ ayat, suratId }) => {
           {isLoading ? "⏳" : "🔊"}
         </button>
 
+        {/* checkbox hafalan */}
         <Form.Check
           type="checkbox"
           checked={isHafal}
@@ -96,9 +114,20 @@ const AyatItem = ({ ayat, suratId }) => {
         />
       </div>
 
-      <div className="text-center flex-grow-1 fs-4">{firstTwoWords}</div>
-      <div className="fs-5">{toArabicNumber(ayat.number)}</div>
+      {/* teks ayat (potongan arab) */}
+      <div className="text-end  flex-grow-1 fs-4 me-3"
+      style={{
+    minHeight: "2.2rem", // tinggi minimal tetap
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  }}
+      >{displayedText}</div>
 
+      {/* nomor ayat arab */}
+      <div className="fs-5">{toArabicNumber(ayat.nomor)}</div>
+
+      {/* modal ayat */}
       <AyatModal
         show={showModal}
         onHide={() => setShowModal(false)}
