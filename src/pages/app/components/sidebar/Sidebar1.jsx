@@ -33,8 +33,8 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
       transition: "transform 0.3s ease-in-out",
     },
     navLink: {
-      padding: "3px 3px",
-      borderRadius: "3px",
+      padding: "6px 6px",
+      borderRadius: "6px",
       display: "block",
       color: "#fff",
       textDecoration: "none",

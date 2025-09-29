@@ -61,20 +61,32 @@ const TampilanSurat = ({ nomor }) => {
     zIndex: 1030, // biar selalu di atas konten
   }}
 >
-  <span >
-  <p
+<div
+  style={{
+    cursor: "pointer",
+    fontSize: "18px",
+    fontWeight: "400",
+    color: "#fff",
+  }}
+  className="d-flex justify-content-between align-items-center px-3"
+>
+  {/* Button kiri */}
+  <button
     onClick={toggleWordCount}
-    style={{
-      cursor: "pointer",
-      margin: 0,
-      fontSize: "18px",
-      fontWeight: "400",
-      color: "#fff", // ✅ kasih warna biar pasti muncul
-    }}
+    className="btn btn-outline-light btn-sm"
   >
-   TAMBAH {wordCount} KATA
-  </p>
+    Tambah
+  </button>
+
+
+  {/* Kata pertama di kanan */}
+  <span className="text-end">
+        <span className="me-5">
+     {wordCount}
   </span>
+      Kata pertama
+  </span>
+</div>
 </footer>
 
     </div>
