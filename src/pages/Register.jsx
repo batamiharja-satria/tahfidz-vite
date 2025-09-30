@@ -1,4 +1,3 @@
-// src/pages/Register.jsx
 import React, { useState } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate } from "react-router-dom";
@@ -34,7 +33,7 @@ export default function Register() {
     if (existingUser) {
       setLoading(false);
       setError("Email sudah terdaftar, silakan login.");
-      return; // stop di sini, tidak lanjut signUp
+      return;
     }
 
     // 🔹 Step 2: lanjut daftar user baru
@@ -59,15 +58,17 @@ export default function Register() {
       setInfo("Jika email valid, link verifikasi telah dikirim.");
     }
 
+    // 🔹 Reset form
     setEmail("");
     setPassword("");
+
+    // 🔹 Auto redirect ke login setelah 60 detik
     setTimeout(() => navigate("/"), 60000);
   };
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
-      <div style={{ padding: "0.0rem", textAlign: "center" }}>
-        {/* ✅ Logo App di atas */}
+      <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
           src="/logo.png"
           alt="App Logo"
@@ -77,7 +78,7 @@ export default function Register() {
       <center>
         <h3>Daftar</h3>
       </center>
-      <br></br>
+      <br />
 
       <form
         style={{ marginBottom: "0.5rem" }}

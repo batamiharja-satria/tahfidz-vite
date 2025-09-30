@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -14,6 +15,17 @@ export default function Login() {
   const [cooldown, setCooldown] = useState(null);
 
   const navigate = useNavigate();
+  const [deviceUUID, setDeviceUUID] = useState("");
+
+  // ✅ UUID perangkat
+  useEffect(() => {
+    let uuid = localStorage.getItem("deviceUUID");
+    if (!uuid) {
+      uuid = uuidv4();
+      localStorage.setItem("deviceUUID", uuid);
+    }
+    setDeviceUUID(uuid);
+  }, []);
 
   // ✅ Cek cooldown & status reset saat pertama kali load halaman
   useEffect(() => {
@@ -35,7 +47,7 @@ export default function Login() {
         if (!prev) return null;
         if (prev <= 1000) {
           clearInterval(timer);
-          setResetSuccess(false); // ⛔ otomatis hilang setelah 1 jam
+          setResetSuccess(false);
           localStorage.removeItem("lastResetRequest");
           return null;
         }
@@ -50,16 +62,24 @@ export default function Login() {
     setLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setLoading(false);
+      if (loginError) {
+        setError(loginError.message);
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      setError(error.message);
-    } else {
+      // ✅ Simpan UUID perangkat di tabel profiles
+      await supabase
+        .from("profiles")
+        .update({ device_uuid: deviceUUID })
+        .eq("email", email);
+
       if (!rememberMe) {
         localStorage.removeItem("sb-" + supabase.supabaseKey + "-auth-token");
       }
@@ -70,7 +90,11 @@ export default function Login() {
       setCooldown(null);
       localStorage.removeItem("lastResetRequest");
 
+      setLoading(false);
       navigate("/app2");
+    } catch (err) {
+      setError(err.message || "Terjadi kesalahan login");
+      setLoading(false);
     }
   };
 
@@ -79,7 +103,7 @@ export default function Login() {
       setError("Masukkan email dulu untuk reset password.");
       return;
     }
-    if (cooldown) return; // ❌ Masih cooldown
+    if (cooldown) return;
 
     setResetLoading(true);
     setError("");
@@ -95,7 +119,7 @@ export default function Login() {
     } else {
       setResetSuccess(true);
       localStorage.setItem("lastResetRequest", Date.now().toString());
-      setCooldown(60 * 60 * 1000); // ⏱️ set 1 jam
+      setCooldown(60 * 60 * 1000); // 1 jam
     }
   };
 
@@ -116,7 +140,7 @@ export default function Login() {
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
-      <div style={{ padding: "0.0rem", textAlign: "center" }}>
+      <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
           src="/logo.png"
           alt="App Logo"
@@ -126,7 +150,7 @@ export default function Login() {
       <center>
         <h3>Masuk</h3>
       </center>
-      <br></br>
+      <br />
       <form onSubmit={handleLogin} className="form-group">
         <div style={{ position: "relative", marginBottom: "1rem" }}>
           <input
@@ -140,7 +164,6 @@ export default function Login() {
             style={{ width: "100%", paddingRight: "2.5rem" }}
           />
         </div>
-
         <div style={{ position: "relative", marginBottom: "1rem" }}>
           <input
             className="form-control"
@@ -176,12 +199,13 @@ export default function Login() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              style={{ marginRight: "0.5rem", marginLeft: "1.0rem" }}
+              style={{ marginRight: "0.5rem", marginLeft: "1rem" }}
             />
             Ingat saya
           </label>
         </div>
       </form>
+
       <p>
         Belum punya akun? <Link to="/register">Daftar</Link>
       </p>
@@ -217,11 +241,10 @@ export default function Login() {
         {resetLoading
           ? "Mengirim..."
           : resetSuccess
-            ? "Cek email atau folder spam 📩"
-            : "Lupa Password?"}
+          ? "Cek email atau folder spam 📩"
+          : "Lupa Password?"}
       </button>
 
-      {/* ℹ️ Pesan kalau masih cooldown */}
       {resetSuccess && cooldown && (
         <p style={{ color: "red", marginTop: "0.5rem" }}>
           Link reset password hanya berlaku {Math.ceil(cooldown / 60000)} menit
