@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button } from "react-bootstrap";
-import suratList from "../data/SuratConfig"; // ✅ naik 1 folder ke data
+import suratList from "../data/SuratConfig";
 import { X } from "react-bootstrap-icons";
 
 const cacheAudioMap = new Map();
@@ -9,17 +9,24 @@ function AyatModal({ show, onHide, ayat, suratId }) {
   const [isLoading, setIsLoading] = useState(false);
   const [audio, setAudio] = useState(null);
 
-  const suratData = suratList.find((s) => s.nomor === suratId);
+  // flatten semua juz di config
+  const allSurat = [];
+  Object.keys(suratList).forEach((k) => {
+    const v = suratList[k];
+    if (v && Array.isArray(v.data)) allSurat.push(...v.data);
+    else if (Array.isArray(v)) allSurat.push(...v);
+  });
+
+  const suratData = allSurat.find((s) => String(s.nomor) === String(suratId));
+
   if (!suratData) {
     console.error("Surat tidak ditemukan di SuratConfig.js");
     return null;
   }
 
-  // pakai nomor asli (tanpa padStart)
   const suratNumber = suratData.nomor;
-  const ayatNumber = ayat.nomor; // ✅ konsisten pakai .nomor bukan .number
+  const ayatNumber = ayat.nomor;
 
-  // URL audio The Quran Project
   const audioUrl = `https://the-quran-project.github.io/Quran-Audio/Data/1/${suratNumber}_${ayatNumber}.mp3`;
   const audioKey = `${suratId}_${ayatNumber}`;
 
@@ -69,7 +76,6 @@ function AyatModal({ show, onHide, ayat, suratId }) {
           className="mb-4 fs-2"
           style={{ fontFamily: "Scheherazade", lineHeight: "2.4rem" }}
         >
-          {/* ✅ tampilkan ayat Arab, fallback ke text */}
           {ayat.ar || ayat.text}
         </div>
         <div className="d-flex justify-content-center gap-3 align-items-center">

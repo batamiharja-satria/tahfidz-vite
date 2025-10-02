@@ -17,6 +17,20 @@ const toArabicNumber = (number) => {
 // cache audio supaya gak download ulang
 const audioCache = new Map();
 
+// helper: ambil semua surat dari semua juz di config
+const getAllSuratFromConfig = (config) => {
+  const all = [];
+  Object.keys(config).forEach((k) => {
+    const v = config[k];
+    if (v && Array.isArray(v.data)) {
+      all.push(...v.data);
+    } else if (Array.isArray(v)) {
+      all.push(...v);
+    }
+  });
+  return all;
+};
+
 const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,19 +52,20 @@ const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
   const playAudio = async () => {
     setIsLoading(true);
 
-    // cari surat dari config
-    const suratData = suratConfig.find((s) => s.nomor === suratId);
+    // cari surat dari config (flatten semua juz)
+    const allSurat = getAllSuratFromConfig(suratConfig);
+    const suratData = allSurat.find((s) => String(s.nomor) === String(suratId));
+
     if (!suratData) {
       alert("Surat tidak ditemukan di SuratConfig.js");
       setIsLoading(false);
       return;
     }
 
-    // pakai nomor asli (tanpa padStart)
-    const suratNumber = suratData.nomor;
+    const suratNumber = suratData.nomor; // pakai nomor asli (tanpa padStart)
     const ayatNumber = ayat.nomor;
 
-    // URL audio The Quran Project
+    // URL audio The Quran Project (format: surat_ayat)
     const audioUrl = `https://the-quran-project.github.io/Quran-Audio/Data/1/${suratNumber}_${ayatNumber}.mp3`;
 
     try {
@@ -78,16 +93,16 @@ const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
     }
   };
 
-  // ✅ tentukan jumlah kata yang ditampilkan
+  // tentukan jumlah kata yang ditampilkan (0 => kosong)
   let displayedText = "";
-  if (wordCount > 0) {
-    displayedText = ayat.ar.split(" ").slice(0, wordCount).join(" ");
+  if (wordCount > 0 && ayat?.ar) {
+    const parts = ayat.ar.split(" ").filter(Boolean);
+    displayedText = parts.slice(0, wordCount).join(" ");
   }
 
   return (
     <div className="d-flex justify-content-between align-items-center border p-2 mb-2">
       <div className="d-flex align-items-center">
-        {/* tombol lihat detail */}
         <button
           className="btn btn-outline-secondary btn-sm me-2"
           onClick={() => setShowModal(true)}
@@ -95,7 +110,6 @@ const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
           <EyeFill />
         </button>
 
-        {/* tombol audio */}
         <button
           className="btn btn-outline-secondary btn-sm me-2"
           onClick={playAudio}
@@ -104,7 +118,6 @@ const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
           {isLoading ? "⏳" : "🔊"}
         </button>
 
-        {/* checkbox hafalan */}
         <Form.Check
           type="checkbox"
           checked={isHafal}
@@ -114,20 +127,20 @@ const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
         />
       </div>
 
-      {/* teks ayat (potongan arab) */}
-      <div className="text-end  flex-grow-1 fs-4 me-3"
-      style={{
-    minHeight: "2.2rem", // tinggi minimal tetap
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-  }}
-      >{displayedText}</div>
+      <div
+        className="text-end flex-grow-1 fs-4 me-3"
+        style={{
+          minHeight: "2.2rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+        }}
+      >
+        {displayedText}
+      </div>
 
-      {/* nomor ayat arab */}
       <div className="fs-5">{toArabicNumber(ayat.nomor)}</div>
 
-      {/* modal ayat */}
       <AyatModal
         show={showModal}
         onHide={() => setShowModal(false)}

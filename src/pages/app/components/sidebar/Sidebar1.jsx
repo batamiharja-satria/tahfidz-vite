@@ -1,24 +1,108 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Logout from "../../../../components/Logout";
-import suratConfig from "../../data/SuratConfig"; // ✅ pakai data lokal
+import suratConfig from "../../data/SuratConfig";
+import { supabase } from "../../../../services/supabase";
 
 const Sidebar1 = ({ isOpen, toggleSidebar }) => {
   const [suratList, setSuratList] = useState([]);
   const [maxWidth, setMaxWidth] = useState("250px");
+  const [openJuz, setOpenJuz] = useState(null);
+  const [userStatus, setUserStatus] = useState([]);
 
-  useEffect(() => {
-    // Filter hanya yang status = true
-    const activeList = suratConfig.filter((s) => s.status === true);
-    setSuratList(activeList);
+  // ✅ Ambil status Juz dari Supabase
+  const fetchUserStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    // Hitung panjang teks terpanjang (nama latin)
-    if (activeList.length > 0) {
-      const maxLen = Math.max(...activeList.map((s) => s.nama_latin.length), 6);
-      setMaxWidth(`${maxLen * 20}px`);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("email", user.email)
+        .single();
+
+      if (error) {
+        console.error("Gagal ambil status:", error.message);
+      } else if (data && data.status) {
+        if (Array.isArray(data.status)) {
+          setUserStatus(data.status);
+        } else if (typeof data.status === "object") {
+          setUserStatus(Object.values(data.status));
+        } else if (typeof data.status === "string") {
+          try {
+            const parsed = JSON.parse(data.status);
+            setUserStatus(parsed);
+          } catch (err) {
+            console.error("Gagal parse JSON:", err);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error fetchUserStatus:", err.message);
     }
+  };
+
+  // 🔁 Pertama kali ambil data status
+  useEffect(() => {
+    fetchUserStatus();
   }, []);
 
+  // ⚡ Realtime listener perubahan tabel profiles
+  useEffect(() => {
+    const channel = supabase
+      .channel("profiles-channel")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+        },
+        (payload) => {
+          console.log("📡 Realtime detected:", payload);
+          fetchUserStatus(); // ambil ulang data user
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // ✅ Ambil surat hanya dari Juz yang aktif (true)
+  useEffect(() => {
+    const all = [];
+
+    Object.keys(suratConfig).forEach((key) => {
+      const juzNumber = parseInt(key.replace("juz", ""), 10);
+      const juzStatus = userStatus[juzNumber - 1];
+      const juz = suratConfig[key];
+
+      if (juzStatus === true && juz && Array.isArray(juz.data)) {
+        juz.data.forEach((surat) => {
+          if (surat) all.push({ ...surat, juz: juzNumber });
+        });
+      }
+    });
+
+    setSuratList(all);
+
+    if (all.length > 0) {
+      const maxLen = Math.max(
+        ...all.map((s) =>
+          s && (s.nama_latin || s.nama)
+            ? (s.nama_latin || s.nama).length
+            : 6
+        ),
+        6
+      );
+      setMaxWidth(`${maxLen * 20}px`);
+    }
+  }, [userStatus]);
+
+  // ✅ Style
   const styles = {
     sidebar: {
       width: maxWidth,
@@ -39,7 +123,29 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
       color: "#fff",
       textDecoration: "none",
     },
+    juzButton: {
+      padding: "0px 6px",
+      cursor: "pointer",
+      color: "#fff",
+      textTransform: "capitalize",
+      marginTop: "8px",
+      marginBottom: "4px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    caret: {
+      marginLeft: "8px",
+      transition: "transform 0.3s ease",
+    },
   };
+
+  // ✅ Kelompokkan berdasarkan Juz
+  const groupedByJuz = suratList.reduce((acc, surat) => {
+    if (!acc[surat.juz]) acc[surat.juz] = [];
+    acc[surat.juz].push(surat);
+    return acc;
+  }, {});
 
   return (
     <div
@@ -49,11 +155,7 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
       }}
     >
       <ul className="nav flex-column p-3">
-        <li className="nav-item">
-          <Link className="nav-link text-white" style={styles.navLink}>
-            <Logout />
-          </Link>
-        </li>
+        {/* ✅ Beranda */}
         <li className="nav-item">
           <Link
             to="/app2"
@@ -64,6 +166,8 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
             BERANDA
           </Link>
         </li>
+
+        {/* ✅ Panduan */}
         <li className="nav-item">
           <Link
             to="/app2/app/fitur1"
@@ -74,18 +178,51 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
             PANDUAN
           </Link>
         </li>
-        {suratList.map((surat) => (
-          <li className="nav-item" key={surat.nomor}>
-            <Link
-              to={`/app2/app/fitur1/${surat.nomor}`} // ✅ nomor dipasang di URL
-              className="nav-link"
-              style={styles.navLink}
-              onClick={toggleSidebar}
+
+        {/* ✅ Juz Aktif */}
+        {Object.keys(groupedByJuz).map((juzKey) => (
+          <li className="nav-item" key={juzKey}>
+            <p
+              style={styles.juzButton}
+              onClick={() => setOpenJuz(openJuz === juzKey ? null : juzKey)}
             >
-              {surat.nama_latin}
-            </Link>
+              <span>Juz {juzKey}</span>
+              <span
+                style={{
+                  ...styles.caret,
+                  transform:
+                    openJuz === juzKey ? "rotate(90deg)" : "rotate(0)",
+                }}
+              >
+                ▶
+              </span>
+            </p>
+
+            {openJuz === juzKey && (
+              <ul className="nav flex-column ms-3">
+                {groupedByJuz[juzKey].map((surat) => (
+                  <li key={surat.nomor}>
+                    <Link
+                      to={`/app2/app/fitur1/${surat.nomor}`}
+                      className="nav-link"
+                      style={styles.navLink}
+                      onClick={toggleSidebar}
+                    >
+                      {surat.nomor} {surat.nama_latin || surat.nama}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
         ))}
+
+        {/* ✅ Logout */}
+        <li className="nav-item">
+          <Link className="nav-link text-white" style={styles.navLink}>
+            <Logout />
+          </Link>
+        </li>
       </ul>
     </div>
   );

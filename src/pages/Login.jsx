@@ -241,8 +241,8 @@ export default function Login() {
         {resetLoading
           ? "Mengirim..."
           : resetSuccess
-          ? "Cek email atau folder spam 📩"
-          : "Lupa Password?"}
+            ? "Cek email atau folder spam 📩"
+            : "Lupa Password?"}
       </button>
 
       {resetSuccess && cooldown && (
