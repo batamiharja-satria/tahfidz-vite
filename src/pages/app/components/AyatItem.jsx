@@ -3,6 +3,7 @@ import { EyeFill } from "react-bootstrap-icons";
 import AyatModal from "./AyatModal";
 import suratConfig from "../data/SuratConfig";
 import { Form } from "react-bootstrap";
+import audioCache from "../utils/audioCache"; // ✅ Import cache global
 
 // ubah angka ke Arab
 const toArabicNumber = (number) => {
@@ -13,9 +14,6 @@ const toArabicNumber = (number) => {
     .map((d) => arabicDigits[parseInt(d)])
     .join("");
 };
-
-// cache audio supaya gak download ulang
-const audioCache = new Map();
 
 // helper: ambil semua surat dari semua juz di config
 const getAllSuratFromConfig = (config) => {
@@ -62,13 +60,14 @@ const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
       return;
     }
 
-    const suratNumber = suratData.nomor; // pakai nomor asli (tanpa padStart)
+    const suratNumber = suratData.nomor;
     const ayatNumber = ayat.nomor;
 
-    // URL audio The Quran Project (format: surat_ayat)
+    // URL audio The Quran Project
     const audioUrl = `https://the-quran-project.github.io/Quran-Audio/Data/1/${suratNumber}_${ayatNumber}.mp3`;
 
     try {
+      // ✅ CEK CACHE GLOBAL - jika audio sudah pernah di-load
       if (audioCache.has(audioUrl)) {
         const cachedAudio = audioCache.get(audioUrl);
         cachedAudio.currentTime = 0;
@@ -77,6 +76,7 @@ const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
         return;
       }
 
+      // ✅ JIKA BELUM ADA DI CACHE - download dan simpan ke cache
       const audio = new Audio(audioUrl);
       audioCache.set(audioUrl, audio);
 

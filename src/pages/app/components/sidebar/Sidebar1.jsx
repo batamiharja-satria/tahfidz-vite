@@ -10,6 +10,36 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
   const [openJuz, setOpenJuz] = useState(null);
   const [userStatus, setUserStatus] = useState([]);
 
+  // ✅ Fungsi hitung progress per surat
+  const getSuratProgress = (suratNomor, totalAyat) => {
+    let hafalCount = 0;
+    for (let i = 1; i <= totalAyat; i++) {
+      const key = `hafalan_${suratNomor}_${i}`;
+      if (localStorage.getItem(key) === 'true') {
+        hafalCount++;
+      }
+    }
+    return Math.round((hafalCount / totalAyat) * 100);
+  };
+
+  // ✅ Fungsi hitung progress per juz
+  const getJuzProgress = (suratListInJuz) => {
+    let totalAyat = 0;
+    let totalHafal = 0;
+    
+    suratListInJuz.forEach(surat => {
+      totalAyat += surat.jumlah_ayat;
+      for (let i = 1; i <= surat.jumlah_ayat; i++) {
+        const key = `hafalan_${surat.nomor}_${i}`;
+        if (localStorage.getItem(key) === 'true') {
+          totalHafal++;
+        }
+      }
+    });
+    
+    return totalAyat > 0 ? Math.round((totalHafal / totalAyat) * 100) : 0;
+  };
+
   // ✅ Ambil status Juz dari Supabase
   const fetchUserStatus = async () => {
     try {
@@ -61,7 +91,7 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
         },
         (payload) => {
           console.log("📡 Realtime detected:", payload);
-          fetchUserStatus(); // ambil ulang data user
+          fetchUserStatus();
         }
       )
       .subscribe();
@@ -179,14 +209,15 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
           </Link>
         </li>
 
-        {/* ✅ Juz Aktif */}
+        {/* ✅ Juz Aktif dengan Progress */}
         {Object.keys(groupedByJuz).map((juzKey) => (
           <li className="nav-item" key={juzKey}>
             <p
               style={styles.juzButton}
               onClick={() => setOpenJuz(openJuz === juzKey ? null : juzKey)}
             >
-              <span>Juz {juzKey}</span>
+              {/* ✅ TAMBAH PROGRESS JUZ DI SINI */}
+              <span>Juz {juzKey} ({getJuzProgress(groupedByJuz[juzKey])}%)</span>
               <span
                 style={{
                   ...styles.caret,
@@ -208,7 +239,8 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
                       style={styles.navLink}
                       onClick={toggleSidebar}
                     >
-                      {surat.nomor} {surat.nama_latin || surat.nama}
+                      {/* ✅ TAMBAH PROGRESS SURAT DI SINI */}
+                      {surat.nomor} {surat.nama_latin || surat.nama} ({getSuratProgress(surat.nomor, surat.jumlah_ayat)}%)
                     </Link>
                   </li>
                 ))}

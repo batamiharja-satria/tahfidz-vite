@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Modal, Button } from "react-bootstrap";
 import suratList from "../data/SuratConfig";
 import { X } from "react-bootstrap-icons";
-
-const cacheAudioMap = new Map();
+import audioCache from "../utils/audioCache"; // ✅ Import cache global
 
 function AyatModal({ show, onHide, ayat, suratId }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -28,14 +27,14 @@ function AyatModal({ show, onHide, ayat, suratId }) {
   const ayatNumber = ayat.nomor;
 
   const audioUrl = `https://the-quran-project.github.io/Quran-Audio/Data/1/${suratNumber}_${ayatNumber}.mp3`;
-  const audioKey = `${suratId}_${ayatNumber}`;
 
   const handlePlayAudio = async () => {
     setIsLoading(true);
 
     try {
-      if (cacheAudioMap.has(audioKey)) {
-        const cachedAudio = cacheAudioMap.get(audioKey);
+      // ✅ CEK CACHE GLOBAL - pakai cache yang sama dengan AyatItem
+      if (audioCache.has(audioUrl)) {
+        const cachedAudio = audioCache.get(audioUrl);
         cachedAudio.currentTime = 0;
         cachedAudio.play();
         setAudio(cachedAudio);
@@ -43,8 +42,9 @@ function AyatModal({ show, onHide, ayat, suratId }) {
         return;
       }
 
+      // ✅ JIKA BELUM ADA DI CACHE - download dan simpan ke cache global
       const newAudio = new Audio(audioUrl);
-      cacheAudioMap.set(audioKey, newAudio);
+      audioCache.set(audioUrl, newAudio);
 
       newAudio.onplaying = () => setIsLoading(false);
       newAudio.onerror = () => {
