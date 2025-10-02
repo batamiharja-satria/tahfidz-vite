@@ -3,62 +3,132 @@ import Sidebar1 from "../components/sidebar/Sidebar1";
 import AyatItem from "../components/AyatItem";
 import { Container, Button } from "react-bootstrap";
 import suratConfig from "./SuratConfig";
+import { supabase } from "../../../services/supabase";
 
 const TampilanSurat = ({ nomor }) => {
   const [data, setData] = useState([]);
-  const [wordCount, setWordCount] = useState(1); // default 1 kata
+  const [wordCount, setWordCount] = useState(1);
+  const [userStatus, setUserStatus] = useState([]);
+  const [isSuratAktif, setIsSuratAktif] = useState(false);
 
+  // ✅ Ambil status user dari Supabase
+  const fetchUserStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("email", user.email)
+        .single();
+
+      if (error) {
+        console.error("Gagal ambil status:", error.message);
+      } else if (data && data.status) {
+        let statusArray = [];
+        
+        if (Array.isArray(data.status)) {
+          statusArray = data.status;
+        } else if (typeof data.status === "object") {
+          statusArray = Object.values(data.status);
+        } else if (typeof data.status === "string") {
+          try {
+            statusArray = JSON.parse(data.status);
+          } catch (err) {
+            console.error("Gagal parse JSON:", err);
+          }
+        }
+        
+        if (statusArray.length !== 10) {
+          statusArray = [false, false, false, false, false, false, false, false, false, true];
+        }
+        
+        setUserStatus(statusArray);
+      }
+    } catch (err) {
+      console.error("Error fetchUserStatus:", err.message);
+    }
+  };
+
+  // 🔁 Ambil data status user
   useEffect(() => {
-    if (!nomor) return;
+    fetchUserStatus();
+  }, []);
 
-    // ✅ PERUBAHAN: Cek apakah surat ada di config (tanpa peduli status juz)
-    let suratExists = false;
-    Object.keys(suratConfig).forEach((k) => {
-      const juz = suratConfig[k];
-      if (!juz) return;
-      const found = (juz.data || []).find(
-        (s) => String(s.nomor) === String(nomor),
-      );
-      if (found) suratExists = true;
+  // ✅ Cek apakah surat ini termasuk dalam premium yang aktif
+  useEffect(() => {
+    if (!nomor || userStatus.length === 0) return;
+
+    let suratAktif = false;
+
+    const premiumMapping = {
+      'premium1': 0,
+      'premium2': 1, 
+      'premium3': 2,
+      'premium4': 3,
+      'premium5': 4,
+      'premium6': 5,
+      'premium7': 6,
+      'premium8': 7,
+      'premium9': 8,
+      'premium10': 9
+    };
+
+    Object.keys(suratConfig).forEach((key) => {
+      const premiumIndex = premiumMapping[key];
+      
+      if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
+        const premium = suratConfig[key];
+        
+        if (premium && Array.isArray(premium.data)) {
+          const found = premium.data.find(surat => String(surat.nomor) === String(nomor));
+          if (found) suratAktif = true;
+        }
+      }
     });
 
-    if (!suratExists) {
-      setData([]);
-      return;
-    }
+    setIsSuratAktif(suratAktif);
 
-    // ✅ LANJUT FETCH - karena surat ada di config
-    fetch(`https://api.quran.gading.dev/surah/${nomor}`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (result?.data?.verses) {
-          const mapped = result.data.verses.map((v) => ({
-            nomor: v.number?.inSurah ?? v.number ?? null,
-            ar: v.text?.arab ?? v.text ?? "",
-          }));
-          setData(mapped);
-        } else {
+    // Jika surat aktif, fetch data
+    if (suratAktif) {
+      fetch(`https://api.quran.gading.dev/surah/${nomor}`)
+        .then((res) => res.json())
+        .then((result) => {
+          if (result?.data?.verses) {
+            const mapped = result.data.verses.map((v) => ({
+              nomor: v.number?.inSurah ?? v.number ?? null,
+              ar: v.text?.arab ?? v.text ?? "",
+            }));
+            setData(mapped);
+          } else {
+            setData([]);
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetch data:", err);
           setData([]);
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetch data:", err);
-        setData([]);
-      });
-  }, [nomor]);
+        });
+    } else {
+      setData([]);
+    }
+  }, [nomor, userStatus]);
 
   const toggleWordCount = () => {
-    setWordCount((prev) => (prev + 1) % 4); // 0 ->1->2->3->0...
+    setWordCount((prev) => (prev + 1) % 4);
   };
 
   return (
     <div className="d-flex flex-column vh-100">
-      {/* content scroll (Header sudah fixed di Index1, Index1 menambahkan paddingTop) */}
       <div className="flex-grow-1 overflow-auto">
         <Container className="mt-3 mb-5">
-          {data.length === 0 ? (
+          {!isSuratAktif ? (
+            <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
+              Surat tidak tersedia atau belum aktif untuk akun Anda.
+            </p>
+          ) : data.length === 0 ? (
             <p style={{ padding: "1rem" }}>
-              Loading...
+              Memuat surat...
             </p>
           ) : (
             data.map((ayat) => (
@@ -73,7 +143,7 @@ const TampilanSurat = ({ nomor }) => {
         </Container>
       </div>
 
-      {/* footer fixed */}
+      {/* Footer tetap sama */}
       <footer
         className="bg-dark text-center p-1"
         style={{

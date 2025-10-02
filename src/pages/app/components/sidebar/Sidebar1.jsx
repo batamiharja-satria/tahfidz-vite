@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, forwardRef } from "react";
 import { Link } from "react-router-dom";
 import Logout from "../../../../components/Logout";
 import suratConfig from "../../data/SuratConfig";
 import { supabase } from "../../../../services/supabase";
 
-const Sidebar1 = ({ isOpen, toggleSidebar }) => {
+const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
   const [suratList, setSuratList] = useState([]);
   const [maxWidth, setMaxWidth] = useState("250px");
-  const [openJuz, setOpenJuz] = useState(null);
+  const [openPremium, setOpenPremium] = useState(null);
   const [userStatus, setUserStatus] = useState([]);
 
   // ✅ Fungsi hitung progress per surat
@@ -22,12 +22,12 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
     return Math.round((hafalCount / totalAyat) * 100);
   };
 
-  // ✅ Fungsi hitung progress per juz
-  const getJuzProgress = (suratListInJuz) => {
+  // ✅ Fungsi hitung progress per premium
+  const getPremiumProgress = (suratListInPremium) => {
     let totalAyat = 0;
     let totalHafal = 0;
     
-    suratListInJuz.forEach(surat => {
+    suratListInPremium.forEach(surat => {
       totalAyat += surat.jumlah_ayat;
       for (let i = 1; i <= surat.jumlah_ayat; i++) {
         const key = `hafalan_${surat.nomor}_${i}`;
@@ -40,7 +40,7 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
     return totalAyat > 0 ? Math.round((totalHafal / totalAyat) * 100) : 0;
   };
 
-  // ✅ Ambil status Juz dari Supabase
+  // ✅ Ambil status Premium dari Supabase
   const fetchUserStatus = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -55,18 +55,25 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
       if (error) {
         console.error("Gagal ambil status:", error.message);
       } else if (data && data.status) {
+        let statusArray = [];
+        
         if (Array.isArray(data.status)) {
-          setUserStatus(data.status);
+          statusArray = data.status;
         } else if (typeof data.status === "object") {
-          setUserStatus(Object.values(data.status));
+          statusArray = Object.values(data.status);
         } else if (typeof data.status === "string") {
           try {
-            const parsed = JSON.parse(data.status);
-            setUserStatus(parsed);
+            statusArray = JSON.parse(data.status);
           } catch (err) {
             console.error("Gagal parse JSON:", err);
           }
         }
+        
+        if (statusArray.length !== 10) {
+          statusArray = [false, false, false, false, false, false, false, false, false, true];
+        }
+        
+        setUserStatus(statusArray);
       }
     } catch (err) {
       console.error("Error fetchUserStatus:", err.message);
@@ -90,7 +97,6 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
           table: "profiles",
         },
         (payload) => {
-          console.log("📡 Realtime detected:", payload);
           fetchUserStatus();
         }
       )
@@ -101,19 +107,34 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
     };
   }, []);
 
-  // ✅ Ambil surat hanya dari Juz yang aktif (true)
+  // ✅ Ambil surat hanya dari Premium yang aktif (true)
   useEffect(() => {
     const all = [];
 
-    Object.keys(suratConfig).forEach((key) => {
-      const juzNumber = parseInt(key.replace("juz", ""), 10);
-      const juzStatus = userStatus[juzNumber - 1];
-      const juz = suratConfig[key];
+    const premiumMapping = {
+      'premium1': 0,
+      'premium2': 1, 
+      'premium3': 2,
+      'premium4': 3,
+      'premium5': 4,
+      'premium6': 5,
+      'premium7': 6,
+      'premium8': 7,
+      'premium9': 8,
+      'premium10': 9
+    };
 
-      if (juzStatus === true && juz && Array.isArray(juz.data)) {
-        juz.data.forEach((surat) => {
-          if (surat) all.push({ ...surat, juz: juzNumber });
-        });
+    Object.keys(suratConfig).forEach((key) => {
+      const premiumIndex = premiumMapping[key];
+      
+      if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
+        const premium = suratConfig[key];
+        
+        if (premium && Array.isArray(premium.data)) {
+          premium.data.forEach((surat) => {
+            if (surat) all.push({ ...surat, premium: key });
+          });
+        }
       }
     });
 
@@ -153,7 +174,7 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
       color: "#fff",
       textDecoration: "none",
     },
-    juzButton: {
+    premiumButton: {
       padding: "0px 6px",
       cursor: "pointer",
       color: "#fff",
@@ -170,15 +191,16 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
     },
   };
 
-  // ✅ Kelompokkan berdasarkan Juz
-  const groupedByJuz = suratList.reduce((acc, surat) => {
-    if (!acc[surat.juz]) acc[surat.juz] = [];
-    acc[surat.juz].push(surat);
+  // ✅ Kelompokkan berdasarkan Premium
+  const groupedByPremium = suratList.reduce((acc, surat) => {
+    if (!acc[surat.premium]) acc[surat.premium] = [];
+    acc[surat.premium].push(surat);
     return acc;
   }, {});
 
   return (
     <div
+      ref={ref}
       style={{
         ...styles.sidebar,
         transform: isOpen ? "translateX(0)" : "translateX(-100%)",
@@ -209,29 +231,28 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
           </Link>
         </li>
 
-        {/* ✅ Juz Aktif dengan Progress */}
-        {Object.keys(groupedByJuz).map((juzKey) => (
-          <li className="nav-item" key={juzKey}>
+        {/* ✅ Premium Aktif dengan Progress */}
+        {Object.keys(groupedByPremium).map((premiumKey) => (
+          <li className="nav-item" key={premiumKey}>
             <p
-              style={styles.juzButton}
-              onClick={() => setOpenJuz(openJuz === juzKey ? null : juzKey)}
+              style={styles.premiumButton}
+              onClick={() => setOpenPremium(openPremium === premiumKey ? null : premiumKey)}
             >
-              {/* ✅ TAMBAH PROGRESS JUZ DI SINI */}
-              <span>Juz {juzKey} ({getJuzProgress(groupedByJuz[juzKey])}%)</span>
+              <span>{premiumKey.replace('premium', 'Premium ')} ({getPremiumProgress(groupedByPremium[premiumKey])}%)</span>
               <span
                 style={{
                   ...styles.caret,
                   transform:
-                    openJuz === juzKey ? "rotate(90deg)" : "rotate(0)",
+                    openPremium === premiumKey ? "rotate(90deg)" : "rotate(0)",
                 }}
               >
                 ▶
               </span>
             </p>
 
-            {openJuz === juzKey && (
+            {openPremium === premiumKey && (
               <ul className="nav flex-column ms-3">
-                {groupedByJuz[juzKey].map((surat) => (
+                {groupedByPremium[premiumKey].map((surat) => (
                   <li key={surat.nomor}>
                     <Link
                       to={`/app2/app/fitur1/${surat.nomor}`}
@@ -239,7 +260,6 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
                       style={styles.navLink}
                       onClick={toggleSidebar}
                     >
-                      {/* ✅ TAMBAH PROGRESS SURAT DI SINI */}
                       {surat.nomor} {surat.nama_latin || surat.nama} ({getSuratProgress(surat.nomor, surat.jumlah_ayat)}%)
                     </Link>
                   </li>
@@ -258,6 +278,6 @@ const Sidebar1 = ({ isOpen, toggleSidebar }) => {
       </ul>
     </div>
   );
-};
+});
 
 export default Sidebar1;

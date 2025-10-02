@@ -1,43 +1,105 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, forwardRef } from "react";
 import { List, Search, X } from "react-bootstrap-icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import suratConfig from "../../data/SuratConfig";
+import { supabase } from "../../../../services/supabase";
 
-const Header1 = ({ toggleSidebar }) => {
+const Header1 = forwardRef(({ toggleSidebar }, ref) => {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
-  const [suratList, setSuratList] = useState([]);
+  const [aktifSuratList, setAktifSuratList] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [userStatus, setUserStatus] = useState([]);
   const searchInputRef = useRef(null);
 
-  useEffect(() => {
-    // Ambil SEMUA surat tanpa filter status
-    const collectAllSurat = () => {
-      const all = [];
+  // ✅ Ambil status user dari Supabase
+  const fetchUserStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      Object.keys(suratConfig).forEach((k) => {
-        const v = suratConfig[k];
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("status")
+        .eq("email", user.email)
+        .single();
+
+      if (error) {
+        console.error("Gagal ambil status:", error.message);
+      } else if (data && data.status) {
+        let statusArray = [];
         
-        if (v && Array.isArray(v.data)) {
-          all.push(...v.data);
-        } else if (Array.isArray(v)) {
-          all.push(...v);
+        if (Array.isArray(data.status)) {
+          statusArray = data.status;
+        } else if (typeof data.status === "object") {
+          statusArray = Object.values(data.status);
+        } else if (typeof data.status === "string") {
+          try {
+            statusArray = JSON.parse(data.status);
+          } catch (err) {
+            console.error("Gagal parse JSON:", err);
+          }
         }
-      });
+        
+        if (statusArray.length !== 10) {
+          statusArray = [false, false, false, false, false, false, false, false, false, true];
+        }
+        
+        setUserStatus(statusArray);
+      }
+    } catch (err) {
+      console.error("Error fetchUserStatus:", err.message);
+    }
+  };
 
-      return all;
-    };
-
-    setSuratList(collectAllSurat());
+  // 🔁 Ambil data status user
+  useEffect(() => {
+    fetchUserStatus();
   }, []);
 
-  const suratName = suratList.find((s) =>
+  // ✅ Dapatkan hanya surat yang aktif (premium status = true)
+  useEffect(() => {
+    const allAktif = [];
+
+    const premiumMapping = {
+      'premium1': 0,
+      'premium2': 1, 
+      'premium3': 2,
+      'premium4': 3,
+      'premium5': 4,
+      'premium6': 5,
+      'premium7': 6,
+      'premium8': 7,
+      'premium9': 8,
+      'premium10': 9
+    };
+
+    Object.keys(suratConfig).forEach((key) => {
+      const premiumIndex = premiumMapping[key];
+      
+      if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
+        const premium = suratConfig[key];
+        
+        if (premium && Array.isArray(premium.data)) {
+          premium.data.forEach((surat) => {
+            if (surat) allAktif.push(surat);
+          });
+        }
+      }
+    });
+
+    setAktifSuratList(allAktif);
+  }, [userStatus]);
+
+  // ✅ PERBAIKAN: Cek apakah di halaman surat (ada nomor surat di path)
+  const isSuratPage = /\/\d+$/.test(currentPath);
+  const suratName = isSuratPage ? aktifSuratList.find((s) =>
     currentPath.endsWith(String(s.nomor)),
-  )?.nama;
+  )?.nama : null;
 
   // Fungsi normalisasi teks untuk pencarian
   const normalizeText = (text) => {
@@ -47,7 +109,7 @@ const Header1 = ({ toggleSidebar }) => {
       .trim();
   };
 
-  // Handle pencarian
+  // Handle pencarian - HANYA dari surat aktif
   const handleSearch = (query) => {
     setSearchQuery(query);
     
@@ -58,7 +120,7 @@ const Header1 = ({ toggleSidebar }) => {
     }
 
     const normalizedQuery = normalizeText(query);
-    const results = suratList.filter(surat => {
+    const results = aktifSuratList.filter(surat => {
       const normalizedLatin = normalizeText(surat.nama_latin || '');
       const normalizedArabic = normalizeText(surat.nama || '');
       
@@ -128,8 +190,12 @@ const Header1 = ({ toggleSidebar }) => {
         zIndex: 1100,
       }}
     >
-      {/* Tombol Sidebar - selalu ada */}
-      <button className="btn btn-outline-light btn-sm" onClick={toggleSidebar}>
+      {/* Tombol Sidebar - gunakan ref dari parent */}
+      <button 
+        ref={ref}
+        className="btn btn-outline-light btn-sm" 
+        onClick={toggleSidebar}
+      >
         <List size={20} />
       </button>
 
@@ -138,9 +204,7 @@ const Header1 = ({ toggleSidebar }) => {
         // DEFAULT STATE: Judul di tengah + Search Icon di kanan
         <>
           <h5 className="mb-0 text-center" style={{ flex: 1, margin: 0 }}>
-            {currentPath === "/" || currentPath === "/fitur1/home1"
-              ? "تَحْفِيْظ"
-              : suratName}
+            {isSuratPage ? suratName : "تَحْفِيْظ"}
           </h5>
           
           <button
@@ -197,7 +261,7 @@ const Header1 = ({ toggleSidebar }) => {
               <X size={16} />
             </button>
 
-            {/* Search Suggestions */}
+            {/* Search Suggestions - HANYA surat aktif */}
             {showSuggestions && searchResults.length > 0 && (
               <div
                 style={{
@@ -264,6 +328,6 @@ const Header1 = ({ toggleSidebar }) => {
       )}
     </div>
   );
-};
+});
 
 export default Header1;
