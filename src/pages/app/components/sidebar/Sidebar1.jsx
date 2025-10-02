@@ -202,8 +202,8 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
     <div
       ref={ref}
       style={{
-        ...styles.sidebar,
-        transform: isOpen ? "translateX(0)" : "translateX(-100%)",
+        ...styles.sidebar, paddingBottom:'20px',
+        transform: isOpen ? "translateX(0)" : "translateX(-100%)" ,
       }}
     >
       <ul className="nav flex-column p-3">
