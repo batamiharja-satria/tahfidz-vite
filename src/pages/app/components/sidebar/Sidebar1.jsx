@@ -1,5 +1,6 @@
 import React, { useEffect, useState, forwardRef } from "react";
 import { Link } from "react-router-dom";
+import { Modal, Button, Form } from "react-bootstrap";
 import Logout from "../../../../components/Logout";
 import suratConfig from "../../data/SuratConfig";
 import { supabase } from "../../../../services/supabase";
@@ -9,6 +10,20 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
   const [maxWidth, setMaxWidth] = useState("250px");
   const [openPremium, setOpenPremium] = useState(null);
   const [userStatus, setUserStatus] = useState([]);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [selectedPremiums, setSelectedPremiums] = useState([]);
+  const [userEmail, setUserEmail] = useState("");
+
+  // ✅ Ambil email user
+  useEffect(() => {
+    const getUserEmail = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email);
+      }
+    };
+    getUserEmail();
+  }, []);
 
   // ✅ Fungsi hitung progress per surat
   const getSuratProgress = (suratNomor, totalAyat) => {
@@ -153,6 +168,65 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
     }
   }, [userStatus]);
 
+  // ✅ Cek apakah semua premium sudah dibeli (premium1-9)
+  const semuaPremiumDibeli = () => {
+    for (let i = 0; i < 9; i++) {
+      if (userStatus[i] !== true) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // ✅ Toggle pilihan premium di modal
+  const togglePremiumSelection = (premiumIndex) => {
+    setSelectedPremiums(prev => {
+      if (prev.includes(premiumIndex)) {
+        return prev.filter(item => item !== premiumIndex);
+      } else {
+        return [...prev, premiumIndex];
+      }
+    });
+  };
+
+  // ✅ Fungsi untuk buka WhatsApp dengan pesan pembelian
+  const bukaWhatsAppPembelian = () => {
+    if (selectedPremiums.length === 0) return;
+
+    const premiumNames = selectedPremiums.map(index => `premium${index + 1}`).join(", ");
+    const totalHarga = selectedPremiums.length * 15000;
+    
+    const message = `Halo, saya ingin membeli ${premiumNames} untuk aplikasi Tahfidz Qur'an. Email: ${userEmail}`;
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Ganti nomor WhatsApp dengan nomor Anda
+    const whatsappUrl = `https://wa.me/6281234567890?text=${encodedMessage}`;
+    
+    window.open(whatsappUrl, '_blank');
+    setShowPremiumModal(false);
+    setSelectedPremiums([]);
+  };
+
+  // ✅ Fungsi untuk mendapatkan informasi surat dalam premium
+  const getSuratInfo = (premiumIndex) => {
+    const premiumKey = `premium${premiumIndex + 1}`;
+    const premiumData = suratConfig[premiumKey];
+    
+    if (!premiumData || !premiumData.data) return "";
+    
+    const suratList = premiumData.data;
+    if (suratList.length === 0) return "";
+    
+    const firstSurat = suratList[0];
+    const lastSurat = suratList[suratList.length - 1];
+    
+    if (firstSurat.nomor === lastSurat.nomor) {
+      return `Surat ${firstSurat.nomor}`;
+    } else {
+      return `Surat ${firstSurat.nomor}-${lastSurat.nomor}`;
+    }
+  };
+
   // ✅ Style
   const styles = {
     sidebar: {
@@ -189,6 +263,18 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
       marginLeft: "8px",
       transition: "transform 0.3s ease",
     },
+    bukaSuratButton: {
+      padding: "6px 6px",
+      borderRadius: "6px",
+      display: "block",
+      color: "#fff",
+      textDecoration: "none",
+      cursor: "pointer",
+      border: "none",
+      background: "none",
+      width: "100%",
+      textAlign: "left"
+    }
   };
 
   // ✅ Kelompokkan berdasarkan Premium
@@ -202,8 +288,9 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
     <div
       ref={ref}
       style={{
-        ...styles.sidebar, paddingBottom:'20px',
-        transform: isOpen ? "translateX(0)" : "translateX(-100%)" ,
+        ...styles.sidebar, 
+        paddingBottom: '20px',
+        transform: isOpen ? "translateX(0)" : "translateX(-100%)",
       }}
     >
       <ul className="nav flex-column p-3">
@@ -231,6 +318,19 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
           </Link>
         </li>
 
+        {/* ✅ Tombol Buka Surat - Hanya tampil jika ada premium yang belum dibeli */}
+        {!semuaPremiumDibeli() && (
+          <li className="nav-item">
+            <button
+              style={styles.bukaSuratButton}
+              onClick={() => setShowPremiumModal(true)}
+              className="nav-link"
+            >
+              BUKA SURAT
+            </button>
+          </li>
+        )}
+
         {/* ✅ Premium Aktif dengan Progress */}
         {Object.keys(groupedByPremium).map((premiumKey) => (
           <li className="nav-item" key={premiumKey}>
@@ -242,8 +342,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
               <span
                 style={{
                   ...styles.caret,
-                  transform:
-                    openPremium === premiumKey ? "rotate(90deg)" : "rotate(0)",
+                  transform: openPremium === premiumKey ? "rotate(90deg)" : "rotate(0)",
                 }}
               >
                 ▶
@@ -276,6 +375,74 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
           </Link>
         </li>
       </ul>
+
+      {/* ✅ Modal Pembelian Premium - SIMPAN & EFEKTIF */}
+      <Modal show={showPremiumModal} onHide={() => setShowPremiumModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Buka Surat Premium</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>Pilih premium yang ingin dibuka (Rp 15.000 per premium):</p>
+          
+          {/* ✅ Grid 2 Kolom dengan Informasi Surat */}
+          <div className="row">
+            {userStatus.slice(0, 9).map((status, index) => (
+              !status && (
+                <div key={index} className="col-6 mb-3">
+                  <div 
+                    className="p-2 border rounded h-100"
+                    style={{ 
+                      cursor: 'pointer',
+                      backgroundColor: selectedPremiums.includes(index) ? '#e7f3ff' : 'white'
+                    }}
+                    onClick={() => togglePremiumSelection(index)}
+                  >
+                    <Form.Check
+                      type="checkbox"
+                      id={`premium-${index + 1}`}
+                      label={
+                        <div>
+                          <div className="fw-bold">Premium {index + 1}</div>
+                          <div className="small text-muted mt-1">
+                            {getSuratInfo(index)}
+                          </div>
+                        </div>
+                      }
+                      checked={selectedPremiums.includes(index)}
+                      onChange={() => togglePremiumSelection(index)}
+                      className="mb-0"
+                    />
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <div className="w-100 d-flex justify-content-between align-items-center">
+            <Button variant="secondary" onClick={() => {
+              setShowPremiumModal(false);
+              setSelectedPremiums([]);
+            }}>
+              Batal
+            </Button>
+            <div className="d-flex align-items-center">
+              {selectedPremiums.length > 0 && (
+                <span className="me-3 text-muted">
+                  Total: <strong>Rp {selectedPremiums.length * 15000}</strong>
+                </span>
+              )}
+              <Button 
+                variant="primary" 
+                onClick={bukaWhatsAppPembelian}
+                disabled={selectedPremiums.length === 0}
+              >
+                Pesan ({selectedPremiums.length})
+              </Button>
+            </div>
+          </div>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 });
