@@ -1,11 +1,12 @@
 import React, { useEffect, useState, forwardRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Modal, Button, Form } from "react-bootstrap";
 import Logout from "../../../../components/Logout";
 import suratConfig from "../../data/SuratConfig";
 import { supabase } from "../../../../services/supabase";
 
-const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
+const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitur1" }, ref) => {
+  const location = useLocation();
   const [suratList, setSuratList] = useState([]);
   const [maxWidth, setMaxWidth] = useState("250px");
   const [openPremium, setOpenPremium] = useState(null);
@@ -13,6 +14,10 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [selectedPremiums, setSelectedPremiums] = useState([]);
   const [userEmail, setUserEmail] = useState("");
+
+  // ✅ Cek apakah sedang di fitur1 atau fitur2
+  const isFitur1 = location.pathname.includes('/fitur1');
+  const isFitur2 = location.pathname.includes('/fitur2');
 
   // ✅ Ambil email user
   useEffect(() => {
@@ -306,17 +311,32 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
           </Link>
         </li>
 
-        {/* ✅ Panduan */}
-        <li className="nav-item">
-          <Link
-            to="/app2/app/fitur1"
-            className="nav-link"
-            style={styles.navLink}
-            onClick={toggleSidebar}
-          >
-            PANDUAN
-          </Link>
-        </li>
+        {/* ✅ Panduan - TOGGLE berdasarkan halaman aktif */}
+        {isFitur1 && (
+          <li className="nav-item">
+            <Link
+              to="/app2/app/fitur1"
+              className="nav-link"
+              style={styles.navLink}
+              onClick={toggleSidebar}
+            >
+              PANDUAN TAHFIDZ
+            </Link>
+          </li>
+        )}
+        
+        {isFitur2 && (
+          <li className="nav-item">
+            <Link
+              to="/app2/app/fitur2"
+              className="nav-link"
+              style={styles.navLink}
+              onClick={toggleSidebar}
+            >
+              PANDUAN ISTIMA'
+            </Link>
+          </li>
+        )}
 
         {/* ✅ Tombol Buka Surat - Hanya tampil jika ada premium yang belum dibeli */}
         {!semuaPremiumDibeli() && (
@@ -354,7 +374,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
                 {groupedByPremium[premiumKey].map((surat) => (
                   <li key={surat.nomor}>
                     <Link
-                      to={`/app2/app/fitur1/${surat.nomor}`}
+                      to={`${basePath}/${surat.nomor}`}
                       className="nav-link"
                       style={styles.navLink}
                       onClick={toggleSidebar}
@@ -376,7 +396,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
         </li>
       </ul>
 
-      {/* ✅ Modal Pembelian Premium - SIMPAN & EFEKTIF */}
+      {/* ✅ Modal Pembelian Premium */}
       <Modal show={showPremiumModal} onHide={() => setShowPremiumModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Buka Surat Premium</Modal.Title>
@@ -384,7 +404,6 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar }, ref) => {
         <Modal.Body>
           <p>Pilih premium yang ingin dibuka (Rp 15.000 per premium):</p>
           
-          {/* ✅ Grid 2 Kolom dengan Informasi Surat */}
           <div className="row">
             {userStatus.slice(0, 9).map((status, index) => (
               !status && (

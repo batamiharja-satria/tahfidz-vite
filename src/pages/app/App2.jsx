@@ -3,6 +3,8 @@ import { supabase } from "../../services/supabase";
 import { Container, Button } from "react-bootstrap";
 import { useNavigate, Routes, Route } from "react-router-dom";
 import Index1 from "./pages/fitur1/Index1";
+// Di bagian imports, tambahkan:
+import Index2 from "./pages/fitur2/Index2";
 
 function App2() {
   const [loading, setLoading] = useState(true);
@@ -277,15 +279,8 @@ function App2() {
 
       <Route path="app/fitur1/*" element={<Index1 />} />
 
-      <Route
-        path="app/fitur2"
-        element={
-          <Container className="text-center mt-5">
-            <h2>Fitur 2 sedang dikembangkan</h2>
-            <p>Silakan kembali nanti.</p>
-          </Container>
-        }
-      />
+// Di dalam komponen App2, dalam Routes, tambahkan:
+<Route path="app/fitur2/*" element={<Index2 />} />
     </Routes>
   );
 }
