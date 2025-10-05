@@ -3,7 +3,6 @@ import { supabase } from "../../services/supabase";
 import { Container, Button } from "react-bootstrap";
 import { useNavigate, Routes, Route } from "react-router-dom";
 import Index1 from "./pages/fitur1/Index1";
-import AdminPanel from "./pages/admin/AdminPanel";
 
 function App2() {
   const [loading, setLoading] = useState(true);
@@ -287,9 +286,6 @@ function App2() {
           </Container>
         }
       />
-
-      {/* ✅ Route Admin Panel - Tersembunyi dari user */}
-      <Route path="admin" element={<AdminPanel />} />
     </Routes>
   );
 }
