@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Container, Button, Modal, Form, Row, Col } from "react-bootstrap";
+import { Eye, EyeSlash } from "react-bootstrap-icons";
 import suratConfig from "./SuratConfig";
 import { supabase } from "../../../services/supabase";
 import audioCache from "../utils/audioCache";
@@ -20,7 +21,7 @@ const TampilanSuratIstima = ({ nomor }) => {
   const [isSuratAktif, setIsSuratAktif] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // State untuk audio playback - SIMPLE VERSION
+  // State untuk audio playback
   const [currentAyat, setCurrentAyat] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playMode, setPlayMode] = useState("single");
@@ -30,19 +31,23 @@ const TampilanSuratIstima = ({ nomor }) => {
   const [currentLoop, setCurrentLoop] = useState(0);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   
+  // State untuk toggle semua terjemahan sekaligus
+  const [showArabic, setShowArabic] = useState(true); // true = tampil Arab, false = tampil Terjemahan
+  
   // Refs untuk manage audio
   const audioRef = useRef(null);
   const ayatContainerRef = useRef(null);
-  const currentAyatRef = useRef(null);
 
-  // Refs untuk state yang perlu diakses di event listeners
+  // Ref untuk state yang perlu diakses di event listeners
   const stateRef = useRef({
     playMode: "single",
     rangeStart: 1,
     rangeEnd: 1,
     loopCount: 1,
     currentLoop: 0,
-    dataLength: 0
+    dataLength: 0,
+    currentAyat: null,
+    isPlaying: false
   });
 
   // Update ref ketika state berubah
@@ -53,9 +58,11 @@ const TampilanSuratIstima = ({ nomor }) => {
       rangeEnd,
       loopCount,
       currentLoop,
-      dataLength: data.length
+      dataLength: data.length,
+      currentAyat,
+      isPlaying
     };
-  }, [playMode, rangeStart, rangeEnd, loopCount, currentLoop, data.length]);
+  }, [playMode, rangeStart, rangeEnd, loopCount, currentLoop, data.length, currentAyat, isPlaying]);
 
   const fetchUserStatus = async () => {
     try {
@@ -136,7 +143,6 @@ const TampilanSuratIstima = ({ nomor }) => {
     if (suratAktif) {
       setLoading(true);
       
-      // Fetch data Arabic text dan terjemahan SEKALIGUS dari API
       fetch(`https://api.quran.gading.dev/surah/${nomor}`)
         .then((res) => res.json())
         .then((result) => {
@@ -147,8 +153,10 @@ const TampilanSuratIstima = ({ nomor }) => {
               translation: v.translation?.id || `Terjemahan ayat ${v.number?.inSurah} tidak tersedia`
             }));
             setData(mapped);
-            setRangeEnd(mapped.length);
-            stateRef.current.dataLength = mapped.length;
+            const ayatCount = mapped.length;
+            setRangeEnd(ayatCount);
+            stateRef.current.rangeEnd = ayatCount;
+            stateRef.current.dataLength = ayatCount;
             setLoading(false);
           } else {
             setData([]);
@@ -166,22 +174,29 @@ const TampilanSuratIstima = ({ nomor }) => {
     }
   }, [nomor, userStatus]);
 
-  // Auto-scroll ke ayat yang sedang diputar
-  useEffect(() => {
-    if (currentAyat && currentAyatRef.current && ayatContainerRef.current) {
-      const ayatElement = currentAyatRef.current;
+  // Scroll function
+  const scrollToAyat = (ayatNomor) => {
+    if (!ayatContainerRef.current) return;
+    
+    setTimeout(() => {
       const container = ayatContainerRef.current;
+      const ayatElements = container.getElementsByClassName('ayat-item');
       
-      const ayatTop = ayatElement.offsetTop;
-      const containerHeight = container.clientHeight;
-      const scrollPosition = ayatTop - (containerHeight / 3);
-      
-      container.scrollTo({
-        top: scrollPosition,
-        behavior: 'smooth'
-      });
-    }
-  }, [currentAyat]);
+      if (ayatElements[ayatNomor - 1]) {
+        const ayatElement = ayatElements[ayatNomor - 1];
+        const containerHeight = container.clientHeight;
+        const ayatTop = ayatElement.offsetTop;
+        const ayatHeight = ayatElement.offsetHeight;
+        
+        const scrollPosition = ayatTop - (containerHeight / 3);
+        
+        container.scrollTo({
+          top: Math.max(0, scrollPosition),
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
+  };
 
   // Cleanup audio ketika komponen unmount
   useEffect(() => {
@@ -193,12 +208,13 @@ const TampilanSuratIstima = ({ nomor }) => {
     };
   }, []);
 
-  // **FUNGSI UTAMA YANG DIPERBAIKI**
-
-  // Handle ketika audio selesai - SANGAT SEDERHANA
+  // Handle audio ended
   const handleAudioEnded = () => {
     const state = stateRef.current;
-    let nextAyat = currentAyat + 1;
+    
+    if (!state.isPlaying) return;
+
+    let nextAyat = state.currentAyat + 1;
 
     if (state.playMode === "single") {
       stopAudio();
@@ -207,7 +223,6 @@ const TampilanSuratIstima = ({ nomor }) => {
 
     if (state.playMode === "range") {
       if (nextAyat > state.rangeEnd) {
-        // Sampai akhir range, cek loop
         const newLoop = state.currentLoop + 1;
         setCurrentLoop(newLoop);
         stateRef.current.currentLoop = newLoop;
@@ -220,7 +235,6 @@ const TampilanSuratIstima = ({ nomor }) => {
       }
     } else if (state.playMode === "sequential") {
       if (nextAyat > state.dataLength) {
-        // Sampai akhir surat, cek loop
         const newLoop = state.currentLoop + 1;
         setCurrentLoop(newLoop);
         stateRef.current.currentLoop = newLoop;
@@ -233,13 +247,17 @@ const TampilanSuratIstima = ({ nomor }) => {
       }
     }
 
-    // Play ayat berikutnya setelah delay kecil
+    if (nextAyat < 1 || nextAyat > state.dataLength) {
+      stopAudio();
+      return;
+    }
+
     setTimeout(() => {
       playAudio(nextAyat);
     }, 500);
   };
 
-  // Core audio playback function - SANGAT SEDERHANA
+  // Core audio playback function
   const playAudio = async (ayatNomor) => {
     if (!data.length || ayatNomor < 1 || ayatNomor > data.length) {
       console.error("Ayat tidak valid:", ayatNomor);
@@ -247,16 +265,21 @@ const TampilanSuratIstima = ({ nomor }) => {
       return;
     }
 
-    console.log("Memutar ayat:", ayatNomor, "Mode:", stateRef.current.playMode);
-
     // Stop audio sebelumnya
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
       audioRef.current = null;
     }
 
     setCurrentAyat(ayatNomor);
     setIsPlaying(true);
+    stateRef.current.currentAyat = ayatNomor;
+    stateRef.current.isPlaying = true;
+
+    // Scroll ke ayat yang sedang diputar
+    scrollToAyat(ayatNomor);
 
     const allSurat = [];
     Object.keys(suratConfig).forEach((k) => {
@@ -283,12 +306,15 @@ const TampilanSuratIstima = ({ nomor }) => {
         audioCache.set(audioUrl, audio);
       }
 
-      // Setup event listeners sederhana
       audio.onended = handleAudioEnded;
       audio.onerror = () => {
         console.error("Error memutar audio ayat:", ayatNomor);
-        alert(`Gagal memutar audio ayat ${ayatNomor}`);
-        stopAudio();
+        if (stateRef.current.playMode !== "single") {
+          handleAudioEnded();
+        } else {
+          alert(`Gagal memutar audio ayat ${ayatNomor}`);
+          stopAudio();
+        }
       };
 
       audioRef.current = audio;
@@ -304,7 +330,7 @@ const TampilanSuratIstima = ({ nomor }) => {
 
   // Fungsi play audio single ayat
   const playSingleAudio = async (ayatNomor) => {
-    if (isPlaying && currentAyat === ayatNomor) {
+    if (isPlaying && currentAyat === ayatNomor && playMode === "single") {
       stopAudio();
       return;
     }
@@ -317,7 +343,7 @@ const TampilanSuratIstima = ({ nomor }) => {
 
   // Fungsi play sequential (seluruh surat)
   const playSequential = async () => {
-    if (isPlaying && playMode === "sequential") {
+    if (isPlaying) {
       stopAudio();
       return;
     }
@@ -332,14 +358,18 @@ const TampilanSuratIstima = ({ nomor }) => {
 
   // Fungsi play range (ayat tertentu)
   const playRangeFromModal = async () => {
-    if (isPlaying && playMode === "range") {
+    if (isPlaying) {
       stopAudio();
       return;
     }
 
-    // Validasi range
     if (rangeStart > rangeEnd) {
       alert("Ayat awal tidak boleh lebih besar dari ayat akhir");
+      return;
+    }
+
+    if (rangeStart < 1 || rangeEnd > data.length) {
+      alert(`Range ayat harus antara 1 dan ${data.length}`);
       return;
     }
 
@@ -348,6 +378,8 @@ const TampilanSuratIstima = ({ nomor }) => {
     setCurrentLoop(0);
     stateRef.current.playMode = "range";
     stateRef.current.currentLoop = 0;
+    stateRef.current.rangeStart = rangeStart;
+    stateRef.current.rangeEnd = rangeEnd;
     setShowSettingsModal(false);
     await playAudio(rangeStart);
   };
@@ -364,23 +396,47 @@ const TampilanSuratIstima = ({ nomor }) => {
     setIsPlaying(false);
     setCurrentAyat(null);
     setCurrentLoop(0);
+    stateRef.current.currentAyat = null;
+    stateRef.current.isPlaying = false;
     stateRef.current.currentLoop = 0;
   };
 
+  // Handler untuk input range
+  const handleRangeStartChange = (e) => {
+    const value = e.target.value === "" ? "" : parseInt(e.target.value);
+    setRangeStart(value);
+  };
+
+  const handleRangeEndChange = (e) => {
+    const value = e.target.value === "" ? "" : parseInt(e.target.value);
+    setRangeEnd(value);
+  };
+
+  // Handler untuk input loop count manual
+  const handleLoopCountChange = (e) => {
+    const value = e.target.value === "" ? "" : parseInt(e.target.value);
+    setLoopCount(value);
+  };
+
+  // Fungsi toggle semua terjemahan
+  const toggleAllTranslations = () => {
+    setShowArabic(!showArabic);
+  };
+
   return (
-    <div className="d-flex flex-column vh-100">
-      {/* Header - TETAP DI ATAS */}
+    <div className="d-flex flex-column" style={{ height: '100vh' }}>
+      {/* Header */}
       <div className="bg-white border-bottom" style={{ flexShrink: 0 }}>
-        <Container className="pt-3">
+        <Container className="pt-2">
           <div className="text-center">
-            <h4>🎧 Surat {nomor}</h4>
+<h4>🎧 Surat {nomor}</h4>
             <div className="d-flex justify-content-center gap-2 mb-3">
               <Button 
-                variant={isPlaying && playMode === "sequential" ? "danger" : "success"}
-                onClick={playSequential}
+                variant={isPlaying ? "danger" : "success"}
+                onClick={isPlaying ? stopAudio : playSequential}
                 size="sm"
               >
-                {isPlaying && playMode === "sequential" ? "⏹️ Stop" : "🔁 Putar Semua"}
+                {isPlaying ? "⏹️ Stop" : "🔁 Putar Semua"}
               </Button>
               <Button 
                 variant="outline-primary"
@@ -390,27 +446,49 @@ const TampilanSuratIstima = ({ nomor }) => {
               >
                 ⚙️ Setelan
               </Button>
+              {/* Tombol toggle semua terjemahan */}
+              <Button 
+                variant={showArabic ? "outline-info" : "info"}
+                onClick={toggleAllTranslations}
+                size="sm"
+                title={showArabic ? "Tampilkan terjemahan" : "Tampilkan teks Arab"}
+              >
+                {showArabic ? <Eye size={16} /> : <EyeSlash size={16} />}
+              </Button>
             </div>
 
             {/* Status Playback */}
-            {isPlaying && (
-              <div className="alert alert-info py-2 small mb-3">
+            <div className="alert alert-info py-2 small mb-3">
+              {isPlaying ? (
                 <strong>
                   {playMode === "sequential" 
                     ? `Memutar seluruh surat • Ayat ${currentAyat}` 
-                    : `Memutar ayat ${rangeStart}-${rangeEnd} • Ayat ${currentAyat}`}
+                    : playMode === "range"
+                    ? `Memutar ayat ${stateRef.current.rangeStart}-${stateRef.current.rangeEnd} • Ayat ${currentAyat}`
+                    : `Memutar ayat ${currentAyat}`}
                   {loopCount > 0 && ` • Loop ${currentLoop + 1}/${loopCount}`}
                   {loopCount === 0 && " • Loop continuous"}
                 </strong>
-              </div>
-            )}
+              ) : (
+                <strong>
+                  {showArabic ? "Teks Arab" : " Terjemahan"} • Pilih mode pemutaran
+                </strong>
+              )}
+            </div>
           </div>
         </Container>
       </div>
 
-      {/* Container Ayat - BISA DI-SCROLL */}
-      <div ref={ayatContainerRef} className="flex-grow-1 overflow-auto">
-        <Container className="py-3">
+      {/* Container Ayat */}
+      <div 
+        ref={ayatContainerRef} 
+        className="flex-grow-1 overflow-auto"
+        style={{ 
+          height: 'calc(100vh - 200px)',
+          paddingBottom: '60px'
+        }}
+      >
+        <Container className="py-2">
           {!isSuratAktif ? (
             <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
               Surat tidak tersedia atau belum aktif untuk akun Anda.
@@ -425,63 +503,69 @@ const TampilanSuratIstima = ({ nomor }) => {
             </p>
           ) : (
             <div>
-              {/* Daftar Ayat */}
               {data.map((ayat) => (
                 <div 
                   key={ayat.nomor} 
-                  ref={currentAyat === ayat.nomor ? currentAyatRef : null}
-                  className="border-bottom pb-3 mb-3"
+                  className="ayat-item border-bottom pb-2 mb-2"
                   style={{ 
                     background: currentAyat === ayat.nomor ? "#e3f2fd" : "transparent",
-                    padding: "0.5rem",
+                    padding: "0.4rem",
                     borderRadius: "4px",
                     transition: "all 0.3s ease",
-                    border: currentAyat === ayat.nomor ? "2px solid #2196f3" : "none"
+                    border: currentAyat === ayat.nomor ? "2px solid #2196f3" : "none",
+                    marginBottom: "0.5rem"
                   }}
                 >
-                  {/* Sederhana: Nomor ayat + Tombol audio */}
-                  <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div className="d-flex justify-content-between align-items-start mb-1">
                     <div className="d-flex align-items-center">
-                      <span className="badge bg-secondary me-2">{toArabicNumber(ayat.nomor)}</span>
+                      <span className="badge bg-secondary me-2" style={{ fontSize: "0.8rem" }}>
+                        {toArabicNumber(ayat.nomor)}
+                      </span>
                     </div>
-                    <Button 
-                      variant={currentAyat === ayat.nomor ? "success" : "outline-success"}
-                      size="sm"
-                      onClick={() => playSingleAudio(ayat.nomor)}
-                      disabled={isPlaying && currentAyat !== ayat.nomor}
-                      className="ms-2"
+                    <div className="d-flex gap-1">
+                      <Button 
+                        variant={currentAyat === ayat.nomor && isPlaying && playMode === "single" ? "success" : "outline-success"}
+                        size="sm"
+                        onClick={() => playSingleAudio(ayat.nomor)}
+                        disabled={isPlaying && currentAyat !== ayat.nomor && playMode !== "single"}
+                        style={{ padding: "0.2rem 0.4rem", fontSize: "0.8rem" }}
+                      >
+                        {currentAyat === ayat.nomor && isPlaying && playMode === "single" ? "⏹️" : "🔊"}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Conditional rendering berdasarkan showArabic */}
+                  {showArabic ? (
+                    // Tampilkan teks Arab
+                    <div 
+                      className="text-end mb-1" 
+                      style={{ 
+                        fontFamily: "Scheherazade, serif", 
+                        fontSize: "1.5rem",
+                        lineHeight: "1.6",
+                        minHeight: "2rem"
+                      }}
                     >
-                      {currentAyat === ayat.nomor ? "⏹️" : "🔊"}
-                    </Button>
-                  </div>
-                  
-                  {/* Teks Arab */}
-                  <div 
-                    className="text-end mb-2" 
-                    style={{ 
-                      fontFamily: "Scheherazade, serif", 
-                      fontSize: "1.8rem",
-                      lineHeight: "2",
-                      minHeight: "3rem"
-                    }}
-                  >
-                    {ayat.ar}
-                  </div>
-                  
-                  {/* Terjemahan dari API */}
-                  <div 
-                    className="p-2 border-top" 
-                    style={{ 
-                      background: "#f8f9fa", 
-                      borderRadius: "4px",
-                      lineHeight: "1.5",
-                      fontSize: "0.9rem"
-                    }}
-                  >
-                    <span className="text-muted">
-                      {ayat.translation || `Terjemahan ayat ${ayat.nomor}`}
-                    </span>
-                  </div>
+                      {ayat.ar}
+                    </div>
+                  ) : (
+                    // PERBAIKAN: Tampilkan terjemahan TANPA keterangan "Ayat X:"
+                    <div 
+                      className="p-2" 
+                      style={{ 
+                        background: "#f8f9fa", 
+                        borderRadius: "4px",
+                        lineHeight: "1.4",
+                        fontSize: "1.0rem",
+                        textAlign: "justify"
+                      }}
+                    >
+                      <span className="text-muted">
+                        {ayat.translation || `Terjemahan ayat ${ayat.nomor}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -504,12 +588,18 @@ const TampilanSuratIstima = ({ nomor }) => {
                   min="1"
                   max={data.length}
                   value={rangeStart}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 1;
-                    setRangeStart(value);
+                  onChange={handleRangeStartChange}
+                  onBlur={(e) => {
+                    let value = parseInt(e.target.value);
+                    if (isNaN(value) || value < 1) value = 1;
+                    if (value > data.length) value = data.length;
                     if (value > rangeEnd) setRangeEnd(value);
+                    setRangeStart(value);
                   }}
                 />
+                <Form.Text className="text-muted">
+                  Min: 1, Max: {data.length}
+                </Form.Text>
               </Col>
               <Col>
                 <Form.Label>Ayat Akhir:</Form.Label>
@@ -518,27 +608,38 @@ const TampilanSuratIstima = ({ nomor }) => {
                   min="1"
                   max={data.length}
                   value={rangeEnd}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value) || 1;
-                    setRangeEnd(value);
+                  onChange={handleRangeEndChange}
+                  onBlur={(e) => {
+                    let value = parseInt(e.target.value);
+                    if (isNaN(value) || value < 1) value = 1;
+                    if (value > data.length) value = data.length;
                     if (value < rangeStart) setRangeStart(value);
+                    setRangeEnd(value);
                   }}
                 />
+                <Form.Text className="text-muted">
+                  Min: 1, Max: {data.length}
+                </Form.Text>
               </Col>
             </Row>
             
             <Form.Group className="mb-3">
-              <Form.Label>Pengulangan:</Form.Label>
-              <Form.Select
+              <Form.Label>Jumlah Pengulangan:</Form.Label>
+              <Form.Control
+                type="number"
+                min="0"
                 value={loopCount}
-                onChange={(e) => setLoopCount(parseInt(e.target.value))}
-              >
-                <option value={1}>1x</option>
-                <option value={3}>3x</option>
-                <option value={5}>5x</option>
-                <option value={10}>10x</option>
-                <option value={0}>Continuous</option>
-              </Form.Select>
+                onChange={handleLoopCountChange}
+                onBlur={(e) => {
+                  let value = parseInt(e.target.value);
+                  if (isNaN(value) || value < 0) value = 1;
+                  setLoopCount(value);
+                }}
+                placeholder="Masukkan jumlah pengulangan"
+              />
+              <Form.Text className="text-muted">
+                0 = Continuous (terus menerus), 1+ = Jumlah pengulangan tertentu
+              </Form.Text>
             </Form.Group>
           </Form>
         </Modal.Body>
@@ -546,20 +647,26 @@ const TampilanSuratIstima = ({ nomor }) => {
           <Button variant="secondary" onClick={() => setShowSettingsModal(false)}>
             Batal
           </Button>
-          <Button variant="primary" onClick={playRangeFromModal}>
+          <Button 
+            variant="primary" 
+            onClick={playRangeFromModal}
+            disabled={!rangeStart || !rangeEnd || rangeStart > rangeEnd}
+          >
             ▶️ Putar Range
           </Button>
         </Modal.Footer>
       </Modal>
 
-      {/* Footer Minimal */}
-      {!isPlaying && (
-        <footer className="bg-light text-center p-2 border-top">
-          <div className="text-muted small">
-            Klik 🔊 untuk putar per ayat • ⚙️ untuk setelan lanjutan
-          </div>
-        </footer>
-      )}
+      {/* Footer */}
+      <footer className="bg-light text-center p-2 border-top" style={{ flexShrink: 0 }}>
+        <div className="text-muted small">
+          {isPlaying ? (
+            `Sedang memutar: Ayat ${currentAyat} • ${playMode === "sequential" ? "Seluruh surat" : playMode === "range" ? `Range ${rangeStart}-${rangeEnd}` : "Single ayat"}`
+          ) : (
+            `Klik 🔊 untuk putar audio • Tombol ${showArabic ? "👁" : "👁‍🗨"} untuk ${showArabic ? "terjemahan" : "teks Arab"} • ⚙️ untuk setelan lanjutan`
+          )}
+        </div>
+      </footer>
     </div>
   );
 };

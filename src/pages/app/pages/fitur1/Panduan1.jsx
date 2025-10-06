@@ -3,7 +3,7 @@ import React from "react";
 const Panduan1 = () => {
   return (
     <div style={{ padding: "25px", maxWidth: "600px", margin: "0 auto", lineHeight: "1.6" }}>
-      <h2 className="text-center mb-4" style={{ marginBottom: "2rem" }}>📖 Panduan Setor Hafalan Mandiri</h2>
+      <h2 className="text-center mb-4" style={{ marginBottom: "2rem" }}>📖 Panduan  Fitur Tahfidz</h2>
       
       <div className="mb-4" style={{ marginBottom: "2rem" }}>
         <p className="text-center text-muted" style={{ textAlign: "justify", textAlignLast: "center" }}>

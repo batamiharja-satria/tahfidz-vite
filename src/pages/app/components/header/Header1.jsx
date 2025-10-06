@@ -16,6 +16,10 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
   const [userStatus, setUserStatus] = useState([]);
   const searchInputRef = useRef(null);
 
+  // ✅ PERBAIKAN: Deteksi fitur aktif
+  const isFitur1 = currentPath.includes('/fitur1');
+  const isFitur2 = currentPath.includes('/fitur2');
+
   // ✅ Ambil status user dari Supabase
   const fetchUserStatus = async () => {
     try {
@@ -132,16 +136,30 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
     setShowSuggestions(true);
   };
 
-  // Handle pilih surat dari hasil pencarian
+  // ✅ PERBAIKAN: Handle pilih surat dari hasil pencarian - sesuaikan dengan fitur aktif
   const handleSelectSurat = (surat) => {
-    navigate(`/app2/app/fitur1/${surat.nomor}`);
+    // PERBAIKAN: Tentukan base path berdasarkan fitur aktif
+    let basePath;
+    if (isFitur2) {
+      basePath = "/app2/app/fitur2";
+    } else {
+      basePath = "/app2/app/fitur1";
+    }
+    
+    navigate(`${basePath}/${surat.nomor}`);
     setSearchQuery("");
     setShowSuggestions(false);
     setIsSearchActive(false);
+    
+    // PERBAIKAN: Dispatch event untuk menghentikan audio di semua fitur
+    window.dispatchEvent(new CustomEvent('stopAllAudio'));
   };
 
-  // Aktifkan mode search
+  // ✅ PERBAIKAN: Aktifkan mode search - stop audio terlebih dahulu
   const activateSearch = () => {
+    // Stop semua audio sebelum membuka pencarian
+    window.dispatchEvent(new CustomEvent('stopAllAudio'));
+    
     setIsSearchActive(true);
     setTimeout(() => {
       searchInputRef.current?.focus();

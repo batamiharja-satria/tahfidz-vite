@@ -346,7 +346,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
               onClick={() => setShowPremiumModal(true)}
               className="nav-link"
             >
-              BUKA SURAT
+              BUKA SURAT TERKUNCI
             </button>
           </li>
         )}
