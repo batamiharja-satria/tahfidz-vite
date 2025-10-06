@@ -1,19 +1,20 @@
-// src/App.jsx
+// src/App.jsx - SIMPLE VERSION
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import App2 from "./pages/app/App2";
-import AdminPanel from "./admin/AdminPanel";
 
-export default function App() {
+function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/app2/*" element={<App2 />} />
-        <Route path="/admin" element={<AdminPanel />} />
       </Routes>
     </Router>
   );
 }
+
+export default App;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Container, Button, Modal, Form, Row, Col } from "react-bootstrap";
 import { Eye, EyeSlash } from "react-bootstrap-icons";
 import suratConfig from "./SuratConfig";
@@ -63,6 +63,19 @@ const TampilanSuratIstima = ({ nomor }) => {
       isPlaying
     };
   }, [playMode, rangeStart, rangeEnd, loopCount, currentLoop, data.length, currentAyat, isPlaying]);
+
+  // ✅ PERBAIKAN: Listen untuk event stopAllAudio dari header/sidebar
+  useEffect(() => {
+    const handleStopAllAudio = () => {
+      stopAudio();
+    };
+
+    window.addEventListener('stopAllAudio', handleStopAllAudio);
+    
+    return () => {
+      window.removeEventListener('stopAllAudio', handleStopAllAudio);
+    };
+  }, []);
 
   const fetchUserStatus = async () => {
     try {
@@ -429,7 +442,7 @@ const TampilanSuratIstima = ({ nomor }) => {
       <div className="bg-white border-bottom" style={{ flexShrink: 0 }}>
         <Container className="pt-2">
           <div className="text-center">
-<h4>🎧 Surat {nomor}</h4>
+            <h4>🎧 Surat {nomor}</h4>
             <div className="d-flex justify-content-center gap-2 mb-3">
               <Button 
                 variant={isPlaying ? "danger" : "success"}

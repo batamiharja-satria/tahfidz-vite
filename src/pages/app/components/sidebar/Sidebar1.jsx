@@ -30,6 +30,13 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     getUserEmail();
   }, []);
 
+  // ✅ PERBAIKAN: Handle klik surat - stop audio sebelum pindah
+  const handleSuratClick = () => {
+    // Stop semua audio sebelum pindah surat
+    window.dispatchEvent(new CustomEvent('stopAllAudio'));
+    toggleSidebar();
+  };
+
   // ✅ Fungsi hitung progress per surat
   const getSuratProgress = (suratNomor, totalAyat) => {
     let hafalCount = 0;
@@ -58,6 +65,15 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     });
     
     return totalAyat > 0 ? Math.round((totalHafal / totalAyat) * 100) : 0;
+  };
+
+  // ✅ FUNGSI BARU: Dapatkan warna berdasarkan persentase
+  const getProgressColor = (progress) => {
+    if (progress === 100) return "#28a745"; // Hijau - 100%
+    if (progress >= 76) return "#007bff";   // Biru - 76-99%
+    if (progress >= 56) return "#ffc107";   // Kuning - 56-75%
+    if (progress >= 26) return "#fd7e14";   // Orange - 26-55%
+    return "#dc3545";                       // Merah - 0-25%
   };
 
   // ✅ Ambil status Premium dari Supabase
@@ -305,7 +321,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
             to="/app2"
             className="nav-link"
             style={styles.navLink}
-            onClick={toggleSidebar}
+            onClick={handleSuratClick}
           >
             BERANDA
           </Link>
@@ -318,7 +334,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
               to="/app2/app/fitur1"
               className="nav-link"
               style={styles.navLink}
-              onClick={toggleSidebar}
+              onClick={handleSuratClick}
             >
               PANDUAN TAHFIDZ
             </Link>
@@ -331,7 +347,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
               to="/app2/app/fitur2"
               className="nav-link"
               style={styles.navLink}
-              onClick={toggleSidebar}
+              onClick={handleSuratClick}
             >
               PANDUAN ISTIMA'
             </Link>
@@ -352,41 +368,61 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
         )}
 
         {/* ✅ Premium Aktif dengan Progress */}
-        {Object.keys(groupedByPremium).map((premiumKey) => (
-          <li className="nav-item" key={premiumKey}>
-            <p
-              style={styles.premiumButton}
-              onClick={() => setOpenPremium(openPremium === premiumKey ? null : premiumKey)}
-            >
-              <span>{premiumKey.replace('premium', 'Premium ')} ({getPremiumProgress(groupedByPremium[premiumKey])}%)</span>
-              <span
-                style={{
-                  ...styles.caret,
-                  transform: openPremium === premiumKey ? "rotate(90deg)" : "rotate(0)",
-                }}
+        {Object.keys(groupedByPremium).map((premiumKey) => {
+          const premiumProgress = getPremiumProgress(groupedByPremium[premiumKey]);
+          const progressColor = getProgressColor(premiumProgress);
+          
+          return (
+            <li className="nav-item" key={premiumKey}>
+              <p
+                style={styles.premiumButton}
+                onClick={() => setOpenPremium(openPremium === premiumKey ? null : premiumKey)}
               >
-                ▶
-              </span>
-            </p>
+                <span>
+                  {premiumKey.replace('premium', 'Premium ')} (
+                  <span style={{ color: progressColor, fontWeight: 'bold' }}>
+                    {premiumProgress}%
+                  </span>
+                  )
+                </span>
+                <span
+                  style={{
+                    ...styles.caret,
+                    transform: openPremium === premiumKey ? "rotate(90deg)" : "rotate(0)",
+                  }}
+                >
+                  ▶
+                </span>
+              </p>
 
-            {openPremium === premiumKey && (
-              <ul className="nav flex-column ms-3">
-                {groupedByPremium[premiumKey].map((surat) => (
-                  <li key={surat.nomor}>
-                    <Link
-                      to={`${basePath}/${surat.nomor}`}
-                      className="nav-link"
-                      style={styles.navLink}
-                      onClick={toggleSidebar}
-                    >
-                      {surat.nomor} {surat.nama_latin || surat.nama} ({getSuratProgress(surat.nomor, surat.jumlah_ayat)}%)
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
+              {openPremium === premiumKey && (
+                <ul className="nav flex-column ms-3">
+                  {groupedByPremium[premiumKey].map((surat) => {
+                    const suratProgress = getSuratProgress(surat.nomor, surat.jumlah_ayat);
+                    const suratProgressColor = getProgressColor(suratProgress);
+                    
+                    return (
+                      <li key={surat.nomor}>
+                        <Link
+                          to={`${basePath}/${surat.nomor}`}
+                          className="nav-link"
+                          style={styles.navLink}
+                          onClick={handleSuratClick}
+                        >
+                          {surat.nomor} {surat.nama_latin || surat.nama} (
+                          <span style={{ color: suratProgressColor, fontWeight: 'bold' }}>
+                            {suratProgress}%
+                          </span>
+                          )
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+          );
+        })}
 
         {/* ✅ Logout */}
         <li className="nav-item">

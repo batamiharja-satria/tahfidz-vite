@@ -153,6 +153,16 @@ function App2() {
               >
                 Kontak
               </a>
+              {/* TAMBAHAN LINK DOWNLOAD */}
+              <a
+                href="#download"
+                className="me-3 text-success"
+                data-bs-toggle="modal"
+                data-bs-target="#downloadModal"
+                style={{ textDecoration: "none" }}
+              >
+                Download
+              </a>
             </footer>
 
             {/* Modal Tentang */}
@@ -273,14 +283,70 @@ function App2() {
                 </div>
               </div>
             </div>
+
+            {/* MODAL BARU UNTUK DOWNLOAD PWA */}
+            <div
+              className="modal fade"
+              id="downloadModal"
+              tabIndex="-1"
+              aria-labelledby="downloadModalLabel"
+              aria-hidden="true"
+            >
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title" id="downloadModalLabel">Download Aplikasi</h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      data-bs-dismiss="modal"
+                      aria-label="Close"
+                    ></button>
+                  </div>
+                  <div className="modal-body text-start">
+                    <p>
+                      <strong>Install Aplikasi di Perangkat Anda</strong>
+                    </p>
+                    <p>
+                      Aplikasi ini mendukung PWA (Progressive Web App). Anda bisa menginstallnya seperti aplikasi native di smartphone atau desktop.
+                    </p>
+                    
+                    <div className="mb-3">
+                      <h6>📱 Untuk Smartphone (Android/iPhone):</h6>
+                      <ol>
+                        <li>Buka browser Chrome (Android) atau Safari (iPhone)</li>
+                        <li>Tap menu (titik tiga di Chrome) atau share icon (kotak dengan panah di Safari)</li>
+                        <li>Pilih <strong>"Add to Home Screen"</strong> atau <strong>"Install App"</strong></li>
+                        <li>Konfirmasi install, dan aplikasi akan muncul di home screen Anda</li>
+                      </ol>
+                    </div>
+
+                    <div className="mb-3">
+                      <h6>💻 Untuk Desktop (Windows/Mac/Linux):</h6>
+                      <ol>
+                        <li>Buka browser Chrome, Edge, atau Safari</li>
+                        <li>Klik icon <strong>"Install"</strong> atau <strong>"+"</strong> di address bar</li>
+                        <li>Atau buka menu browser → "Install App"</li>
+                        <li>Aplikasi akan terinstall seperti aplikasi desktop biasa</li>
+                      </ol>
+                    </div>
+
+                    <p className="text-muted small">
+                      Setelah diinstall, Anda bisa membuka aplikasi langsung dari home screen atau desktop tanpa perlu membuka browser lagi.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </Container>
         }
       />
 
       <Route path="app/fitur1/*" element={<Index1 />} />
 
-// Di dalam komponen App2, dalam Routes, tambahkan:
-<Route path="app/fitur2/*" element={<Index2 />} />
+      {/* Di dalam komponen App2, dalam Routes, tambahkan: */}
+      <Route path="app/fitur2/*" element={<Index2 />} />
     </Routes>
   );
 }

@@ -4,12 +4,30 @@ import AyatItem from "../components/AyatItem";
 import { Container, Button } from "react-bootstrap";
 import suratConfig from "./SuratConfig";
 import { supabase } from "../../../services/supabase";
+import audioCache from "../utils/audioCache"; // ✅ Import untuk akses cache
 
 const TampilanSurat = ({ nomor }) => {
   const [data, setData] = useState([]);
   const [wordCount, setWordCount] = useState(1);
   const [userStatus, setUserStatus] = useState([]);
   const [isSuratAktif, setIsSuratAktif] = useState(false);
+
+  // ✅ PERBAIKAN: Listen untuk event stopAllAudio dari header/sidebar
+  useEffect(() => {
+    const handleStopAllAudio = () => {
+      // Hentikan semua audio yang sedang diputar di fitur1
+      audioCache.forEach((audio) => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+    };
+
+    window.addEventListener('stopAllAudio', handleStopAllAudio);
+    
+    return () => {
+      window.removeEventListener('stopAllAudio', handleStopAllAudio);
+    };
+  }, []);
 
   // ✅ Ambil status user dari Supabase
   const fetchUserStatus = async () => {

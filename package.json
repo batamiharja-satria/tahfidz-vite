@@ -17,7 +17,9 @@
     "react-bootstrap-icons": "^1.11.6",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.9.2",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "vite-plugin-pwa": "^1.0.3",
+    "workbox-window": "^7.3.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
