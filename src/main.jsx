@@ -1,16 +1,22 @@
-// src/main.jsx
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App";
-import "bootstrap/dist/css/bootstrap.min.css";
-import { registerSW, showInstallPrompt } from "./utils/pwa";
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+// ✅ REGISTER SERVICE WORKER
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('SW registered: ', registration);
+      })
+      .catch((registrationError) => {
+        console.log('SW registration failed: ', registrationError);
+      });
+  });
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
-);
-
-// Register Service Worker
-registerSW();
-showInstallPrompt();
+)

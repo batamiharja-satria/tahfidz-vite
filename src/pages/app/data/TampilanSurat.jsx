@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Sidebar1 from "../components/sidebar/Sidebar1";
 import AyatItem from "../components/AyatItem";
 import { Container, Button } from "react-bootstrap";
@@ -11,6 +11,9 @@ const TampilanSurat = ({ nomor }) => {
   const [wordCount, setWordCount] = useState(1);
   const [userStatus, setUserStatus] = useState([]);
   const [isSuratAktif, setIsSuratAktif] = useState(false);
+  
+  // ✅ REF UNTUK CONTAINER AYAT - SCROLL POSITION
+  const ayatContainerRef = useRef(null);
 
   // ✅ PERBAIKAN: Listen untuk event stopAllAudio dari header/sidebar
   useEffect(() => {
@@ -28,6 +31,32 @@ const TampilanSurat = ({ nomor }) => {
       window.removeEventListener('stopAllAudio', handleStopAllAudio);
     };
   }, []);
+
+  // ✅ SIMPAN SCROLL POSITION - FITUR TAHFIDZ
+  useEffect(() => {
+    const container = ayatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      localStorage.setItem(`scroll_fitur1_${nomor}`, container.scrollTop);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [nomor]);
+
+  // ✅ RESTORE SCROLL POSITION - FITUR TAHFIDZ
+  useEffect(() => {
+    const container = ayatContainerRef.current;
+    if (!container) return;
+
+    const savedScroll = localStorage.getItem(`scroll_fitur1_${nomor}`);
+    if (savedScroll) {
+      setTimeout(() => {
+        container.scrollTop = parseInt(savedScroll);
+      }, 100);
+    }
+  }, [nomor]);
 
   // ✅ Ambil status user dari Supabase
   const fetchUserStatus = async () => {
@@ -138,11 +167,12 @@ const TampilanSurat = ({ nomor }) => {
 
   return (
     <div className="d-flex flex-column vh-100">
-      <div className="flex-grow-1 overflow-auto">
+      {/* ✅ TAMBAH REF DI CONTAINER AYAT */}
+      <div ref={ayatContainerRef} className="flex-grow-1 overflow-auto">
         <Container className="mt-3 mb-5">
           {!isSuratAktif ? (
             <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
-              Surat tidak tersedia atau belum aktif untuk akun Anda.
+              Surat tidak tersedia atau belum aktif untuk akun Anda. Jika surat sudah aktif tapi tidak tampil, cek kualitas jaringan internet anda dan atau refresh halaman kembali.
             </p>
           ) : data.length === 0 ? (
             <p style={{ padding: "1rem" }}>

@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Tahfidz Qur\'an',
-        short_name: 'TahfidzApp',
+        name: 'Tahfid',
+        short_name: 'Tahfidz',
         description: 'Aplikasi Tahfidz dan Istima\' Al-Qur\'an',
         theme_color: '#212529',
         background_color: '#ffffff',
@@ -18,6 +18,9 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        id: '/', // ✅ TAMBAH INI
+        categories: ['education', 'religion'], // ✅ TAMBAH INI
+        lang: 'id-ID', // ✅ TAMBAH INI
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -72,26 +75,24 @@ export default defineConfig({
       }
     })
   ],
-  base: "./",
+  base: "/", // ✅ UBAH DARI "./" KE "/"
   build: {
     target: "es2015",
     outDir: "dist",
     assetsDir: "assets",
     sourcemap: false,
-    // ✅ TAMBAHKAN INI untuk remove semua komentar
     minify: 'terser',
     terserOptions: {
       format: {
-        comments: false, // Hapus semua komentar
+        comments: false,
       },
       compress: {
-        drop_console: true, // Opsional: hapus console.log juga
-        drop_debugger: true // Hapus debugger
+        drop_console: true,
+        drop_debugger: true
       }
     }
   },
-  // ✅ Opsional: Hapus komentar dari CSS juga
   esbuild: {
-    drop: ['console', 'debugger'], // Hapus console dan debugger
+    drop: ['console', 'debugger'],
   }
 });

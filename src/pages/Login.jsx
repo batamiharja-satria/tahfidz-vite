@@ -80,10 +80,6 @@ export default function Login() {
         .update({ device_uuid: deviceUUID })
         .eq("email", email);
 
-      if (!rememberMe) {
-        localStorage.removeItem("sb-" + supabase.supabaseKey + "-auth-token");
-      }
-
       // ✅ Bersihkan semua state reset setelah login sukses
       setResetSuccess(false);
       setResetLoading(false);

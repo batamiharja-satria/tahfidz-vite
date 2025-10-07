@@ -19,6 +19,26 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
   const isFitur1 = location.pathname.includes('/fitur1');
   const isFitur2 = location.pathname.includes('/fitur2');
 
+  // ✅ EFFECT UNTUK MENGONTROL BODY SCROLL
+  useEffect(() => {
+    if (isOpen) {
+      // Sidebar terbuka - disable body scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    } else {
+      // Sidebar tertutup - enable body scroll
+      document.body.style.overflow = 'auto';
+      document.body.style.position = 'static';
+    }
+
+    // Cleanup
+    return () => {
+      document.body.style.overflow = 'auto';
+      document.body.style.position = 'static';
+    };
+  }, [isOpen]);
+
   // ✅ Ambil email user
   useEffect(() => {
     const getUserEmail = async () => {
@@ -217,11 +237,11 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     const premiumNames = selectedPremiums.map(index => `premium${index + 1}`).join(", ");
     const totalHarga = selectedPremiums.length * 15000;
     
-    const message = `Halo, saya ingin membeli ${premiumNames} untuk aplikasi Tahfidz Qur'an. Email: ${userEmail}`;
+    const message = `Halo, saya ingin membuka${premiumNames} untuk aplikasi Tahfidz Qur'an. Email: ${userEmail}`;
     const encodedMessage = encodeURIComponent(message);
     
     // Ganti nomor WhatsApp dengan nomor Anda
-    const whatsappUrl = `https://wa.me/6281234567890?text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/6285164285542?text=${encodedMessage}`;
     
     window.open(whatsappUrl, '_blank');
     setShowPremiumModal(false);
@@ -257,7 +277,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
       position: "fixed",
       top: "56px",
       left: 0,
-      zIndex: 1000,
+      zIndex: 1200,
       backgroundColor: "#212529",
       color: "#fff",
       transition: "transform 0.3s ease-in-out",
@@ -313,6 +333,11 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
         paddingBottom: '20px',
         transform: isOpen ? "translateX(0)" : "translateX(-100%)",
       }}
+      // ✅ HANYA GUNAKAN WHEEL HANDLER SEDERHANA
+      onWheel={(e) => {
+        // Biarkan scroll internal sidebar bekerja normal
+        e.stopPropagation();
+      }}
     >
       <ul className="nav flex-column p-3">
         {/* ✅ Beranda */}
@@ -359,8 +384,12 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
           <li className="nav-item">
             <button
               style={styles.bukaSuratButton}
-              onClick={() => setShowPremiumModal(true)}
+              onClick={() => {
+  setShowPremiumModal(true);
+  toggleSidebar();
+}}
               className="nav-link"
+
             >
               BUKA SURAT TERKUNCI
             </button>

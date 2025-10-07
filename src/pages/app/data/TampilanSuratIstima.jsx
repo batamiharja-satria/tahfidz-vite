@@ -438,8 +438,34 @@ const TampilanSuratIstima = ({ nomor }) => {
 
   return (
     <div className="d-flex flex-column" style={{ height: '100vh' }}>
-      {/* Header */}
-      <div className="bg-white border-bottom" style={{ flexShrink: 0 }}>
+  {/* Header - FIXED POSITION */}
+  <div className="bg-white border-bottom" 
+  style={{
+    position: 'fixed',
+    top: '56px',
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    background: 'white',
+    // ✅ TAMBAH STYLE INI UNTUK MEMASTIKAN TIDAK BISA SCROLL
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none'
+  }}
+  // ✅ EVENT HANDLER UNTUK BLOCK SEMUA SCROLL
+  onWheel={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }}
+  onTouchMove={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }}
+  onScroll={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  
+  }}>
         <Container className="pt-2">
           <div className="text-center">
             <h4>🎧 Surat {nomor}</h4>
@@ -493,18 +519,19 @@ const TampilanSuratIstima = ({ nomor }) => {
       </div>
 
       {/* Container Ayat */}
-      <div 
-        ref={ayatContainerRef} 
-        className="flex-grow-1 overflow-auto"
-        style={{ 
-          height: 'calc(100vh - 200px)',
-          paddingBottom: '60px'
-        }}
-      >
+<div 
+  ref={ayatContainerRef} 
+  className="flex-grow-1 overflow-auto"
+  style={{ 
+    marginTop: '150px', // Sesuaikan dengan tinggi header
+    height: 'calc(100vh - 140px - 56px)', // Kurangi tinggi header fixed
+    paddingBottom: '60px'
+  }}
+>
         <Container className="py-2">
           {!isSuratAktif ? (
             <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
-              Surat tidak tersedia atau belum aktif untuk akun Anda.
+              Surat tidak tersedia atau belum aktif untuk akun Anda. Jika surat sudah aktif tapi tidak tampil, cek kualitas jaringan internet anda dan atau refresh halaman kembali.
             </p>
           ) : loading ? (
             <p style={{ padding: "1rem", textAlign: "center" }}>
@@ -670,16 +697,6 @@ const TampilanSuratIstima = ({ nomor }) => {
         </Modal.Footer>
       </Modal>
 
-      {/* Footer */}
-      <footer className="bg-light text-center p-2 border-top" style={{ flexShrink: 0 }}>
-        <div className="text-muted small">
-          {isPlaying ? (
-            `Sedang memutar: Ayat ${currentAyat} • ${playMode === "sequential" ? "Seluruh surat" : playMode === "range" ? `Range ${rangeStart}-${rangeEnd}` : "Single ayat"}`
-          ) : (
-            `Klik 🔊 untuk putar audio • Tombol ${showArabic ? "👁" : "👁‍🗨"} untuk ${showArabic ? "terjemahan" : "teks Arab"} • ⚙️ untuk setelan lanjutan`
-          )}
-        </div>
-      </footer>
     </div>
   );
 };

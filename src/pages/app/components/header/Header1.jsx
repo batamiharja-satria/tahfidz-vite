@@ -206,6 +206,23 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
         left: 0,
         right: 0,
         zIndex: 1100,
+        // ✅ TAMBAH STYLE INI UNTUK MEMASTIKAN TIDAK BISA SCROLL
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none'
+      }}
+      // ✅ EVENT HANDLER UNTUK BLOCK SEMUA SCROLL
+      onWheel={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onTouchMove={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onScroll={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
       }}
     >
       {/* Tombol Sidebar - gunakan ref dari parent */}
@@ -279,7 +296,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
               <X size={16} />
             </button>
 
-            {/* Search Suggestions - HANYA surat aktif */}
+            {/* ✅ PERBAIKAN: Search Suggestions - TINGKATKAN Z-INDEX MENJADI 1300 */}
             {showSuggestions && searchResults.length > 0 && (
               <div
                 style={{
@@ -292,7 +309,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
                   borderRadius: "4px",
                   maxHeight: "200px",
                   overflowY: "auto",
-                  zIndex: 1200,
+                  zIndex: 1300, // ✅ DARI 1200 KE 1300 - LEBIH TINGGI DARI HEADER FITUR2
                   marginTop: "4px"
                 }}
               >
@@ -320,7 +337,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
               </div>
             )}
 
-            {/* No results message */}
+            {/* ✅ PERBAIKAN: No results message - TINGKATKAN Z-INDEX MENJADI 1300 */}
             {showSuggestions && searchQuery.length > 0 && searchResults.length === 0 && (
               <div
                 style={{
@@ -334,7 +351,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
                   padding: "8px 12px",
                   color: "#6c757d",
                   fontSize: "14px",
-                  zIndex: 1200,
+                  zIndex: 1300, // ✅ DARI 1200 KE 1300 - LEBIH TINGGI DARI HEADER FITUR2
                   marginTop: "4px"
                 }}
               >

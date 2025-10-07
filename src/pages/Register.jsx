@@ -1,164 +1,70 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate } from "react-router-dom";
-import { v4 as uuidv4 } from "uuid";
 
-export default function Login() {
+export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState(false);
-  const [cooldown, setCooldown] = useState(null);
-
   const navigate = useNavigate();
-  const [deviceUUID, setDeviceUUID] = useState("");
 
-  // ✅ UUID perangkat
-  useEffect(() => {
-    let uuid = localStorage.getItem("deviceUUID");
-    if (!uuid) {
-      uuid = uuidv4();
-      localStorage.setItem("deviceUUID", uuid);
-    }
-    setDeviceUUID(uuid);
-  }, []);
-
-  // ✅ Cek cooldown & status reset saat pertama kali load halaman
-  useEffect(() => {
-    const lastRequest = localStorage.getItem("lastResetRequest");
-    if (lastRequest) {
-      const diff = Date.now() - parseInt(lastRequest, 10);
-      if (diff < 60 * 60 * 1000) {
-        setCooldown(60 * 60 * 1000 - diff);
-        setResetSuccess(true);
-      }
-    }
-  }, []);
-
-  // ✅ Hitung mundur cooldown
-  useEffect(() => {
-    if (!cooldown) return;
-    const timer = setInterval(() => {
-      setCooldown((prev) => {
-        if (!prev) return null;
-        if (prev <= 1000) {
-          clearInterval(timer);
-          setResetSuccess(false);
-          localStorage.removeItem("lastResetRequest");
-          return null;
-        }
-        return prev - 1000;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cooldown]);
-
-  const handleLogin = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setInfo("");
+    setLoading(true);
 
-    try {
-      // ✅ CEK DEVICE UUID SEBELUM LOGIN
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("device_uuid")
-        .eq("email", email)
-        .single();
+    // 🔹 Step 1: cek apakah email sudah ada di profiles
+    const { data: existingUser, error: checkError } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("email", email)
+      .maybeSingle();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        setError("Gagal memeriksa perangkat");
-        setLoading(false);
-        return;
-      }
-
-      // ✅ VALIDASI DEVICE UUID
-      if (profileData && profileData.device_uuid && profileData.device_uuid !== deviceUUID) {
-        setError("Perangkat tidak diizinkan! Akun ini sudah terdaftar di perangkat lain.");
-        setLoading(false);
-        return;
-      }
-
-      const { data: authData, error: loginError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (loginError) {
-        setError(loginError.message);
-        setLoading(false);
-        return;
-      }
-
-      // ✅ UPDATE DEVICE UUID JIKA BELUM ADA ATAU PERANGK BARU
-      if (!profileData?.device_uuid) {
-        await supabase
-          .from("profiles")
-          .update({ device_uuid: deviceUUID })
-          .eq("email", email);
-      }
-
-      if (!rememberMe) {
-        localStorage.removeItem("sb-" + supabase.supabaseKey + "-auth-token");
-      }
-
-      // ✅ Bersihkan semua state reset setelah login sukses
-      setResetSuccess(false);
-      setResetLoading(false);
-      setCooldown(null);
-      localStorage.removeItem("lastResetRequest");
-
+    if (checkError) {
       setLoading(false);
-      navigate("/app2");
-    } catch (err) {
-      setError(err.message || "Terjadi kesalahan login");
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Masukkan email dulu untuk reset password.");
+      setError("Terjadi kesalahan saat memeriksa email.");
       return;
     }
-    if (cooldown) return;
 
-    setResetLoading(true);
-    setError("");
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:5173/reset-password.html",
-    });
-
-    setResetLoading(false);
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setResetSuccess(true);
-      localStorage.setItem("lastResetRequest", Date.now().toString());
-      setCooldown(60 * 60 * 1000); // 1 jam
+    if (existingUser) {
+      setLoading(false);
+      setError("Email sudah terdaftar, silakan login.");
+      return;
     }
-  };
 
-  // ✅ Reset tombol lupa password setelah logout
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        setResetSuccess(false);
-        setResetLoading(false);
-        setCooldown(null);
-        localStorage.removeItem("lastResetRequest");
-      }
+    // 🔹 Step 2: lanjut daftar user baru
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: "http://localhost:5173/verified.html",
+      },
     });
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+
+    setLoading(false);
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+
+    if (data?.user) {
+      setInfo("Silakan cek email Anda dan lakukan verifikasi sebelum login.");
+    } else {
+      setInfo("Jika email valid, link verifikasi telah dikirim.");
+    }
+
+    // 🔹 Reset form
+    setEmail("");
+    setPassword("");
+
+    // 🔹 Auto redirect ke login setelah 60 detik
+    setTimeout(() => navigate("/"), 60000);
+  };
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
@@ -170,10 +76,15 @@ export default function Login() {
         />
       </div>
       <center>
-        <h3>Masuk</h3>
+        <h3>Daftar</h3>
       </center>
       <br />
-      <form onSubmit={handleLogin} className="form-group">
+
+      <form
+        style={{ marginBottom: "0.5rem" }}
+        className="form-group"
+        onSubmit={handleRegister}
+      >
         <div style={{ position: "relative", marginBottom: "1rem" }}>
           <input
             className="form-control"
@@ -186,6 +97,7 @@ export default function Login() {
             style={{ width: "100%", paddingRight: "2.5rem" }}
           />
         </div>
+
         <div style={{ position: "relative", marginBottom: "1rem" }}>
           <input
             className="form-control"
@@ -212,78 +124,17 @@ export default function Login() {
           </span>
         </div>
 
-        <div style={{ marginBottom: "0.5rem" }}>
-          <button className="btn btn-primary" type="submit" disabled={loading}>
-            {loading ? "Loading..." : "Masuk"}
-          </button>
-          <label>
-            <input
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              style={{ marginRight: "0.5rem", marginLeft: "1rem" }}
-            />
-            Ingat saya
-          </label>
-        </div>
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          {loading ? "Loading..." : "Daftar"}
+        </button>
       </form>
 
       <p>
-        Belum punya akun? <Link to="/register">Daftar</Link>
+        Sudah punya akun? <Link to="/">Masuk</Link>
       </p>
 
-      <button
-        type="button"
-        onClick={handleForgotPassword}
-        disabled={resetLoading || cooldown}
-        style={{
-          marginTop: "1rem",
-          background: "none",
-          border: "none",
-          cursor: resetLoading || cooldown ? "not-allowed" : "pointer",
-          color: resetSuccess ? "green" : "red",
-          fontWeight: resetSuccess ? "bold" : "normal",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {resetLoading && (
-          <span
-            style={{
-              width: "14px",
-              height: "14px",
-              border: "2px solid #ccc",
-              borderTop: "2px solid blue",
-              borderRadius: "50%",
-              display: "inline-block",
-              animation: "spin 1s linear infinite",
-            }}
-          />
-        )}
-        {resetLoading
-          ? "Mengirim..."
-          : resetSuccess
-            ? "Cek email atau folder spam 📩"
-            : "Lupa Password?"}
-      </button>
-
-      {resetSuccess && cooldown && (
-        <p style={{ color: "red", marginTop: "0.5rem" }}>
-          Link reset password hanya berlaku {Math.ceil(cooldown / 60000)} menit
-          lagi. Setelah itu Anda bisa kirim ulang.
-        </p>
-      )}
-
       {error && <p style={{ color: "red" }}>{error}</p>}
-
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
+      {info && <p style={{ color: "green" }}>{info}</p>}
     </div>
   );
 }
