@@ -172,7 +172,7 @@ const TampilanSurat = ({ nomor }) => {
         <Container className="mt-3 mb-5">
           {!isSuratAktif ? (
             <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
-              Surat tidak tersedia atau belum aktif untuk akun Anda. Jika surat sudah aktif tapi tidak tampil, cek kualitas jaringan internet anda dan atau refresh halaman kembali.
+              LOADING...
             </p>
           ) : data.length === 0 ? (
             <p style={{ padding: "1rem" }}>

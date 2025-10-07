@@ -58,15 +58,18 @@ function App() {
           element={session ? <Navigate to="/app2" /> : <Register />} 
         />
         
+        {/* ✅ ROUTE ADMIN - TANPA PROTECTION SESSION (punya login sendiri) */}
+        <Route 
+          path="/admin" 
+          element={<AdminPanel />} 
+        />
+
         {/* ✅ JIKA BELUM LOGIN, REDIRECT KE LOGIN */}
         <Route 
           path="/app2/*" 
           element={session ? <App2 /> : <Navigate to="/login" />} 
         />
-        <Route 
-          path="/admin" 
-          element={session ? <AdminPanel /> : <Navigate to="/login" />} 
-        />
+
       </Routes>
     </Router>
   );

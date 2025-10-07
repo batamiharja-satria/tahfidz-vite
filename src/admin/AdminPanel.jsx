@@ -1,17 +1,17 @@
-// src/admin/AdminPanel.js
 import React, { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
+import { Link } from "react-router-dom";
 import "./admin.css";
 
 const AdminPanel = () => {
-  // ✅ STATE LOGIN BARU - TAMBAHIN INI DOANG
+  // ✅ STATE LOGIN BARU
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // ✅ STATE YANG UDAH ADA - JANGAN DIUBAH
+  // ✅ STATE YANG UDAH ADA
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,7 +19,7 @@ const AdminPanel = () => {
   const [showEditor, setShowEditor] = useState(false);
   const [updating, setUpdating] = useState(false);
 
-  // ✅ FUNGSI LOGIN BARU - TAMBAHIN INI
+  // ✅ FUNGSI LOGIN BARU
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     setLoginLoading(true);
@@ -48,7 +48,7 @@ const AdminPanel = () => {
     }
   };
 
-  // ✅ CEK SUDAH LOGIN - TAMBAHIN INI
+  // ✅ CEK SUDAH LOGIN
   useEffect(() => {
     const loggedIn = localStorage.getItem("adminLoggedIn");
     if (loggedIn === "true") {
@@ -56,13 +56,13 @@ const AdminPanel = () => {
     }
   }, []);
 
-  // ✅ LOGOUT - TAMBAHIN INI
+  // ✅ LOGOUT
   const handleLogout = () => {
     setIsLoggedIn(false);
     localStorage.removeItem("adminLoggedIn");
   };
 
-  // ✅ FUNGSI YANG UDAH ADA - JANGAN DIUBAH
+  // ✅ FUNGSI YANG UDAH ADA
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -84,14 +84,13 @@ const AdminPanel = () => {
     }
   };
 
-  // 🔁 Initial load - MODIFIKASI SEDIKIT
+  // 🔁 Initial load
   useEffect(() => {
     if (isLoggedIn) {
       fetchUsers();
     }
-  }, [isLoggedIn]); // Tambah dependency isLoggedIn
+  }, [isLoggedIn]);
 
-  // ✅ FUNGSI-FUNGSI LAIN YANG UDAH ADA - JANGAN DIUBAH
   const filteredUsers = users.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -165,12 +164,36 @@ const AdminPanel = () => {
     setUpdating(false);
   };
 
-  // ✅ RENDER LOGIN JIKA BELUM LOGIN - TAMBAHIN INI
+  // ✅ RENDER LOGIN JIKA BELUM LOGIN
   if (!isLoggedIn) {
     return (
+      
+      
+                 
+           
+
+
       <div className="admin-container">
+         <Link 
+              to="/" 
+              style={{
+                padding: '0px 0px',
+                
+                background: '',
+                color: 'black',
+                border: 'none',
+                borderRadius: '0px',
+                
+                textDecoration: 'none'
+              }}
+            >
+              ← 
+            </Link>
         <div className="login-section">
-          <div className="login-card">
+          
+          
+       <div className="login-card">
+            
             <h2>🔐 Admin Login</h2>
             <form onSubmit={handleAdminLogin}>
               <input
@@ -194,14 +217,15 @@ const AdminPanel = () => {
                 {loginLoading ? "Loading..." : "Login"}
               </button>
             </form>
-           
+
           </div>
         </div>
       </div>
+      
     );
   }
 
-  // ✅ RENDER YANG UDAH ADA - JANGAN DIUBAH, CUMA TAMBAH TOMBOL LOGOUT
+  // ✅ RENDER YANG UDAH ADA DENGAN TOMBOL LOGOUT
   if (loading) {
     return (
       <div className="admin-container">
@@ -218,30 +242,33 @@ const AdminPanel = () => {
 
   return (
     <div className="admin-container">
-      {/* Header - TAMBAHIN TOMBOL LOGOUT */}
+      {/* Header dengan Link ke Login */}
       <div className="admin-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div>
-            <h1>🛠️ Admin</h1>
+            <h1>🛠️ Admin Panel</h1>
             <p>Kelola status premium user</p>
           </div>
-          <button 
-            onClick={handleLogout}
-            style={{
-              padding: '8px 16px',
-              background: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer'
-            }}
-          >
-            Logout
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+           
+            <button 
+              onClick={handleLogout}
+              style={{
+                padding: '8px 16px',
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid - JANGAN DIUBAH */}
+      {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-item">
           <div className="stat-number">{users.length}</div>
@@ -257,7 +284,7 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      {/* Search Box - JANGAN DIUBAH */}
+      {/* Search Box */}
       <div className="search-container">
         <div className="search-box">
           <span className="search-icon">🔍</span>
@@ -270,11 +297,11 @@ const AdminPanel = () => {
           />
         </div>
         <button className="btn-refresh" onClick={fetchUsers}>
-          🔄
+          🔄 Refresh
         </button>
       </div>
 
-      {/* Users List - JANGAN DIUBAH */}
+      {/* Users List */}
       <div className="users-section">
         <div className="section-title">
           Daftar User <span className="count-badge">{filteredUsers.length}</span>
@@ -292,7 +319,7 @@ const AdminPanel = () => {
                 <div className="user-header">
                   <div className="user-email">{user.email}</div>
                   <div className={`premium-badge ${getActivePremiumCount(user.status) > 0 ? 'active' : 'inactive'}`}>
-                    {getActivePremiumCount(user.status)}/9
+                    {getActivePremiumCount(user.status)}/9 Premium
                   </div>
                 </div>
                 
@@ -326,7 +353,7 @@ const AdminPanel = () => {
                   onClick={() => handleEditUser(user)}
                   className="btn-edit"
                 >
-                  ✏️ Edit
+                  ✏️ Edit Premium
                 </button>
               </div>
             ))}
@@ -334,12 +361,12 @@ const AdminPanel = () => {
         )}
       </div>
 
-      {/* Modal Editor - JANGAN DIUBAH */}
+      {/* Modal Editor */}
       {showEditor && selectedUser && (
         <div className="modal-overlay">
           <div className="modal-container">
             <div className="modal-header">
-              <h3>Edit Premium</h3>
+              <h3>Edit Status Premium</h3>
               <button className="btn-close" onClick={handleCloseModal}>×</button>
             </div>
             
@@ -348,7 +375,7 @@ const AdminPanel = () => {
                 <strong>{selectedUser.email}</strong>
                 <div className="premium-summary">
                   {getActivePremiumCount(selectedUser.status)} premium aktif · 
-                  Rp {(getActivePremiumCount(selectedUser.status) * 15000).toLocaleString()}
+                  Total: Rp {(getActivePremiumCount(selectedUser.status) * 15000).toLocaleString()}
                 </div>
               </div>
               
@@ -388,7 +415,7 @@ const AdminPanel = () => {
                 className="btn-save"
                 disabled={updating}
               >
-                {updating ? "Menyimpan..." : "💾 Simpan"}
+                {updating ? "Menyimpan..." : "💾 Simpan Perubahan"}
               </button>
             </div>
           </div>

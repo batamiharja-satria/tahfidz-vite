@@ -259,7 +259,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     const premiumNames = selectedPremiums.map(index => `premium${index + 1}`).join(", ");
     const totalHarga = selectedPremiums.length * 15000;
     
-    const message = `Halo, saya ingin membuka${premiumNames} untuk aplikasi Tahfidz Qur'an. Email: ${userEmail}`;
+    const message = `Halo, saya ingin membuka ${premiumNames} untuk aplikasi Tahfidz Qur'an. Email: ${userEmail}`;
     const encodedMessage = encodeURIComponent(message);
     
     // Ganti nomor WhatsApp dengan nomor Anda

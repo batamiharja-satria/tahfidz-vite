@@ -9,7 +9,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Tahfid',
+        name: 'Tahfidz',
         short_name: 'Tahfidz',
         description: 'Aplikasi Tahfidz dan Istima\' Al-Qur\'an',
         theme_color: '#212529',

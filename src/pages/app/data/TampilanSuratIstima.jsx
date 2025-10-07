@@ -531,7 +531,7 @@ const TampilanSuratIstima = ({ nomor }) => {
         <Container className="py-2">
           {!isSuratAktif ? (
             <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
-              Surat tidak tersedia atau belum aktif untuk akun Anda. Jika surat sudah aktif tapi tidak tampil, cek kualitas jaringan internet anda dan atau refresh halaman kembali.
+              LOADING...
             </p>
           ) : loading ? (
             <p style={{ padding: "1rem", textAlign: "center" }}>

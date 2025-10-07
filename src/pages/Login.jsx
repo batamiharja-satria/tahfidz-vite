@@ -136,6 +136,9 @@ export default function Login() {
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
+      
+
+      
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
           src="/logo.png"
@@ -248,7 +251,24 @@ export default function Login() {
         </p>
       )}
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: "red", marginTop:"1rem"}}>{error}</p>}
+      
+            {/* LINK KE ADMIN PANEL */}
+      <div style={{ textAlign: "left", marginTop: "5rem" }}>
+        <Link 
+          to="/admin" 
+          style={{
+            padding: "1px 1px",
+            background: "white",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: "6px",
+            fontWeight: "bold"
+          }}
+        >
+          🔧 
+        </Link>
+      </div>
 
       <style>
         {`
