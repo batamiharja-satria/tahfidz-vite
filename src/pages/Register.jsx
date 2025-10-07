@@ -41,7 +41,7 @@ export default function Register() {
       email,
       password,
       options: {
-        emailRedirectTo: "http://localhost:5173/verified.html",
+        emailRedirectTo: "https://tahfidzku.vercel.app/verified.html",
       },
     });
 

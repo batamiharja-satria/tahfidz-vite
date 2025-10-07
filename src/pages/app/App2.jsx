@@ -329,14 +329,18 @@ function App2() {
       </ul>
     </div>
 
-    <div className="mb-3">
-      <strong>🚀 Layanan Lainnya:</strong>
-      <ul className="small mt-2">
-        <li>Konsultasi teknologi dan digital transformation</li>
-        <li>Maintenance & update aplikasi berkelanjutan</li>
-        <li>Optimasi performa dan keamanan aplikasi</li>
-      </ul>
-    </div>
+<div className="mb-3">
+  <strong>🚀 Layanan Lainnya:</strong>
+  <ul className="small mt-2">
+    <li>
+      <strong>👨‍💻 Private Coding Mentor</strong> - Fullstack Web & App Development 
+      untuk siswa usia 10+ tahun, bimbingan hingga mahir
+    </li>
+    <li>Konsultasi teknologi dan digital transformation</li>
+    <li>Maintenance & update aplikasi berkelanjutan</li>
+    <li>Optimasi performa dan keamanan aplikasi</li>
+  </ul>
+</div>
 
     <div className="alert alert-success small mt-3 mb-0">
       <strong>💡 Tertarik bekerja sama?</strong><br/>
@@ -430,6 +434,20 @@ function App2() {
                 </div>
               </div>
             </div>
+            
+            {/* Footer Hak Cipta */}
+<footer className="mt-4 text-center">
+  <div className="text-muted small" style={{ 
+    borderTop: '1px solid #dee2e6', 
+    paddingTop: '1rem',
+    marginTop: '2rem'
+  }}>
+    <p className="mb-1">
+      &copy; {new Date().getFullYear()} Batam App. All rights reserved.
+    </p>
+
+  </div>
+</footer>
 
           </Container>
         }

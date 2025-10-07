@@ -105,7 +105,7 @@ export default function Login() {
     setError("");
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:5173/reset-password.html",
+      redirectTo: "https://tahfidzku.vercel.app/reset-password.html",
     });
 
     setResetLoading(false);

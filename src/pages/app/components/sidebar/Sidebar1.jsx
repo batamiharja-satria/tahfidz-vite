@@ -1,9 +1,10 @@
 import React, { useEffect, useState, forwardRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate} from "react-router-dom";
 import { Modal, Button, Form } from "react-bootstrap";
 import Logout from "../../../../components/Logout";
 import suratConfig from "../../data/SuratConfig";
 import { supabase } from "../../../../services/supabase";
+import { HistoryManager } from "../../utils/history"; // ✅ IMPORT HISTORY MANAGER
 
 const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitur1" }, ref) => {
   const location = useLocation();
@@ -14,6 +15,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [selectedPremiums, setSelectedPremiums] = useState([]);
   const [userEmail, setUserEmail] = useState("");
+  const navigate = useNavigate(); // ✅ TAMBAHKAN useNavigate
 
   // ✅ Cek apakah sedang di fitur1 atau fitur2
   const isFitur1 = location.pathname.includes('/fitur1');
@@ -55,6 +57,26 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     // Stop semua audio sebelum pindah surat
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
     toggleSidebar();
+  };
+
+  // ✅ FUNGSI BARU: Handle pindah fitur
+  const handlePindahFitur = (targetFitur) => {
+    // Stop semua audio sebelum pindah fitur
+    window.dispatchEvent(new CustomEvent('stopAllAudio'));
+    
+    // Tutup sidebar
+    toggleSidebar();
+    
+    // Cek history untuk fitur tujuan
+    const lastPage = HistoryManager.getLastPage(targetFitur);
+    console.log(`Last page ${targetFitur}:`, lastPage);
+    
+    // Navigasi ke halaman terakhir atau panduan
+    if (lastPage && lastPage !== `/app2/app/${targetFitur}` && lastPage !== `/app2/app/${targetFitur}/panduan${targetFitur === 'fitur1' ? '1' : '2'}`) {
+      navigate(lastPage);
+    } else {
+      navigate(`/app2/app/${targetFitur}`);
+    }
   };
 
   // ✅ Fungsi hitung progress per surat
@@ -241,7 +263,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     const encodedMessage = encodeURIComponent(message);
     
     // Ganti nomor WhatsApp dengan nomor Anda
-    const whatsappUrl = `https://wa.me/6285164285542?text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/6285199466850?text=${encodedMessage}`;
     
     window.open(whatsappUrl, '_blank');
     setShowPremiumModal(false);
@@ -288,6 +310,11 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
       display: "block",
       color: "#fff",
       textDecoration: "none",
+      cursor: "pointer",
+      border: "none",
+      background: "none",
+      width: "100%",
+      textAlign: "left"
     },
     premiumButton: {
       padding: "0px 6px",
@@ -315,6 +342,22 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
       background: "none",
       width: "100%",
       textAlign: "left"
+    },
+    // ✅ STYLE BARU UNTUK TOMBOL PINDAH FITUR
+    pindahFiturButton: {
+      padding: "8px 6px",
+      borderRadius: "6px",
+      display: "block",
+      color: "#fff",
+      textDecoration: "none",
+      cursor: "pointer",
+      border: "none",
+      background: "linear-gradient(135deg, rgba(23,162,184,0.3), rgba(40,167,69,0.3))",
+      width: "100%",
+      textAlign: "left",
+      margin: "8px 0",
+      fontWeight: "bold",
+      transition: "all 0.3s ease"
     }
   };
 
@@ -330,7 +373,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
       ref={ref}
       style={{
         ...styles.sidebar, 
-        paddingBottom: '20px',
+        paddingBottom: '100px',
         transform: isOpen ? "translateX(0)" : "translateX(-100%)",
       }}
       // ✅ HANYA GUNAKAN WHEEL HANDLER SEDERHANA
@@ -341,7 +384,28 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     >
       <ul className="nav flex-column p-3">
         {/* ✅ Beranda */}
+
+
+
+
+        {/* ✅ TOMBOL BARU: PINDAH FITUR */}
         <li className="nav-item">
+          <button
+            style={styles.pindahFiturButton}
+            onClick={() => handlePindahFitur(isFitur1 ? 'fitur2' : 'fitur1')}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(23,162,184,0.5), rgba(40,167,69,0.5))";
+              e.currentTarget.style.transform = "translateX(5px)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(23,162,184,0.3), rgba(40,167,69,0.3))";
+              e.currentTarget.style.transform = "translateX(0)";
+            }}
+          >
+            {isFitur1 ? "🎧 PINDAH KE ISTIMA'" : "📖 PINDAH KE TAHFIDZ"}
+          </button>
+        </li>
+                <li className="nav-item">
           <Link
             to="/app2"
             className="nav-link"
@@ -351,8 +415,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
             BERANDA
           </Link>
         </li>
-
-        {/* ✅ Panduan - TOGGLE berdasarkan halaman aktif */}
+                {/* ✅ Panduan - TOGGLE berdasarkan halaman aktif */}
         {isFitur1 && (
           <li className="nav-item">
             <Link
@@ -385,11 +448,10 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
             <button
               style={styles.bukaSuratButton}
               onClick={() => {
-  setShowPremiumModal(true);
-  toggleSidebar();
-}}
+                setShowPremiumModal(true);
+                toggleSidebar();
+              }}
               className="nav-link"
-
             >
               BUKA SURAT TERKUNCI
             </button>
