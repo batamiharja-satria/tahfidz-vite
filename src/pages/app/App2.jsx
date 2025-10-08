@@ -80,10 +80,11 @@ function App2() {
             }}
           >
             {/* Header - TEXT CENTER */}
-            <h1 className="fw-bold display-6 mb-2 text-center">Assalamu'alaikum</h1>
-            <p className="text-muted fs-5 text-center">
-              Selamat datang di aplikasi Qur'an. Silakan mulai dengan memilih fitur.
-            </p>
+            <h1 className="fw-bold display-5 mb-2 text-center">Assalamu 'alaikum</h1>
+            <p className=" fs-6 text-center">
+              Selamat Datang di Aplikasi Qur'an</p> 
+
+
 
             {/* Kartu Fitur - ✅ MODIFIKASI ONCLICK */}
             <div className="d-flex justify-content-center gap-3 flex-wrap mt-4">
