@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
-        name: 'Tahfidz',
-        short_name: 'Tahfidz',
+        name: 'TahfidzKu',
+        short_name: 'TahfidzKu',
         description: 'Aplikasi Tahfidz dan Istima\' Al-Qur\'an',
         theme_color: '#212529',
         background_color: '#ffffff',
@@ -18,30 +18,45 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
-        id: '/', // ✅ TAMBAH INI
-        categories: ['education', 'religion'], // ✅ TAMBAH INI
-        lang: 'id-ID', // ✅ TAMBAH INI
+        id: '/',
+        categories: ['education', 'religion'],
+        lang: 'id-ID',
         icons: [
+          {
+            src: 'pwa-64x64.png',
+            sizes: '64x64',
+            type: 'image/png',
+            purpose: 'any'
+          },
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: 'pwa-maskable-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'maskable'
+          },
+          {
+            src: 'pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB max
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.quran\.gading\.dev\/.*/i,
@@ -49,8 +64,8 @@ export default defineConfig({
             options: {
               cacheName: 'quran-api-cache',
               expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30
+                maxEntries: 50, // Kurangi dari 100 ke 50
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 minggu saja
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -63,19 +78,20 @@ export default defineConfig({
             options: {
               cacheName: 'quran-audio-cache',
               expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 365
+                maxEntries: 100, // Kurangi dari 500 ke 100
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 1 bulan saja
               }
             }
           }
         ]
       },
       devOptions: {
-        enabled: true
+        enabled: true,
+        type: 'module'
       }
     })
   ],
-  base: "/", // ✅ UBAH DARI "./" KE "/"
+  base: "/",
   build: {
     target: "es2015",
     outDir: "dist",
@@ -83,16 +99,10 @@ export default defineConfig({
     sourcemap: false,
     minify: 'terser',
     terserOptions: {
-      format: {
-        comments: false,
-      },
       compress: {
-        drop_console: true,
+        drop_console: false, // Jangan drop console di production
         drop_debugger: true
       }
     }
-  },
-  esbuild: {
-    drop: ['console', 'debugger'],
   }
 });

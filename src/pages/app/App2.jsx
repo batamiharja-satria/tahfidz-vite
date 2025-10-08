@@ -6,6 +6,8 @@ import Index1 from "./pages/fitur1/Index1";
 import Index2 from "./pages/fitur2/Index2";
 import { HistoryManager } from "./utils/history"; // ✅ IMPORT HISTORY MANAGER
 
+
+
 function App2() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -400,9 +402,7 @@ function App2() {
                     ></button>
                   </div>
                   <div className="modal-body text-start">
-                    <p>
-                      <strong>Install Aplikasi di Perangkat Anda</strong>
-                    </p>
+      
                     <p>
                       Aplikasi ini mendukung PWA (Progressive Web App). Anda bisa menginstallnya seperti aplikasi native di smartphone atau desktop.
                     </p>
@@ -414,6 +414,7 @@ function App2() {
                         <li>Tap menu (titik tiga di Chrome) atau share icon (kotak dengan panah di Safari)</li>
                         <li>Pilih <strong>"Add to Home Screen"</strong> atau <strong>"Install App"</strong></li>
                         <li>Konfirmasi install, dan aplikasi akan muncul di home screen Anda</li>
+                      
                       </ol>
                     </div>
 
@@ -426,9 +427,9 @@ function App2() {
                         <li>Aplikasi akan terinstall seperti aplikasi desktop biasa</li>
                       </ol>
                     </div>
-
+                    
                     <p className="text-muted small">
-                      Setelah diinstall, Anda bisa membuka aplikasi langsung dari home screen atau desktop tanpa perlu membuka browser lagi.
+                      Setelah diinstall, Anda bisa membuka aplikasi langsung dari home screen atau desktop tanpa perlu membuka browser lagi. Jika gagal install mungkin butuh update browser versi terbaru terlebih dahulu, lalu coba install ulang.
                     </p>
                   </div>
                 </div>

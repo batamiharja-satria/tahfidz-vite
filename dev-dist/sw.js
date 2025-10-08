@@ -82,7 +82,7 @@ define(['./workbox-ce4f0d5f'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.h2bh484psdk"
+    "revision": "0.u1n53js7gcg"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -91,8 +91,8 @@ define(['./workbox-ce4f0d5f'], (function (workbox) { 'use strict';
   workbox.registerRoute(/^https:\/\/api\.quran\.gading\.dev\/.*/i, new workbox.CacheFirst({
     "cacheName": "quran-api-cache",
     plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 100,
-      maxAgeSeconds: 2592000
+      maxEntries: 50,
+      maxAgeSeconds: 604800
     }), new workbox.CacheableResponsePlugin({
       statuses: [0, 200]
     })]
@@ -100,8 +100,8 @@ define(['./workbox-ce4f0d5f'], (function (workbox) { 'use strict';
   workbox.registerRoute(/^https:\/\/the-quran-project\.github\.io\/.*/i, new workbox.CacheFirst({
     "cacheName": "quran-audio-cache",
     plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 500,
-      maxAgeSeconds: 31536000
+      maxEntries: 100,
+      maxAgeSeconds: 2592000
     })]
   }), 'GET');
 
