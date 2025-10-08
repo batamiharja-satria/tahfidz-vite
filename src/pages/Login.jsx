@@ -63,22 +63,39 @@ export default function Login() {
     setError("");
 
     try {
+      // 🔹 Step 1: Cek device UUID di database
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("device_uuid")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      if (!profileData) {
+        throw new Error("Email belum terdaftar.");
+      }
+
+      // 🔹 Step 2: Validasi device UUID
+      if (profileData.device_uuid && profileData.device_uuid !== deviceUUID) {
+        throw new Error("Akun ini terdaftar di device lain. Gunakan device yang sama atau daftar dengan email baru.");
+      }
+
+      // 🔹 Step 3: Login dengan Supabase Auth
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (loginError) {
-        setError(loginError.message);
-        setLoading(false);
-        return;
-      }
+      if (loginError) throw loginError;
 
-      // ✅ Simpan UUID perangkat di tabel profiles
-      await supabase
-        .from("profiles")
-        .update({ device_uuid: deviceUUID })
-        .eq("email", email);
+      // 🔹 Step 4: Jika device_uuid belum ada, update dengan device UUID saat ini
+      if (!profileData.device_uuid) {
+        await supabase
+          .from("profiles")
+          .update({ device_uuid: deviceUUID })
+          .eq("email", email);
+      }
 
       // ✅ Bersihkan semua state reset setelah login sukses
       setResetSuccess(false);
@@ -89,7 +106,7 @@ export default function Login() {
       setLoading(false);
       navigate("/app2");
     } catch (err) {
-      setError(err.message || "Terjadi kesalahan login");
+      setError(err.message);
       setLoading(false);
     }
   };
@@ -136,9 +153,6 @@ export default function Login() {
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
-      
-
-      
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
           src="/logo.png"
@@ -253,7 +267,7 @@ export default function Login() {
 
       {error && <p style={{ color: "red", marginTop:"1rem"}}>{error}</p>}
       
-            {/* LINK KE ADMIN PANEL */}
+      {/* LINK KE ADMIN PANEL */}
       <div style={{ textAlign: "left", marginTop: "5rem" }}>
         <Link 
           to="/admin" 

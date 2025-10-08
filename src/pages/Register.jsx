@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate } from "react-router-dom";
+import { v4 as uuidv4 } from "uuid";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -10,6 +11,17 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const [deviceUUID, setDeviceUUID] = useState("");
+
+  // ✅ Generate device UUID saat component mount
+  useEffect(() => {
+    let uuid = localStorage.getItem("deviceUUID");
+    if (!uuid) {
+      uuid = uuidv4();
+      localStorage.setItem("deviceUUID", uuid);
+    }
+    setDeviceUUID(uuid);
+  }, []);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -17,53 +29,70 @@ export default function Register() {
     setInfo("");
     setLoading(true);
 
-    // 🔹 Step 1: cek apakah email sudah ada di profiles
-    const { data: existingUser, error: checkError } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("email", email)
-      .maybeSingle();
+    try {
+      // 🔹 Step 1: Cek apakah email sudah ada di profiles
+      const { data: existingUser, error: checkError } = await supabase
+        .from("profiles")
+        .select("email, device_uuid")
+        .eq("email", email)
+        .maybeSingle();
 
-    if (checkError) {
+      if (checkError) {
+        throw new Error("Terjadi kesalahan saat memeriksa email.");
+      }
+
+      if (existingUser) {
+        // 🔹 Cek apakah email sudah terdaftar di device lain
+        if (existingUser.device_uuid && existingUser.device_uuid !== deviceUUID) {
+          throw new Error("Email sudah terdaftar di device lain. Gunakan email baru untuk device ini.");
+        }
+        throw new Error("Email sudah terdaftar, silakan login.");
+      }
+
+      // 🔹 Step 2: Daftar user baru di auth
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: "https://tahfidzku.vercel.app/verified.html",
+          data: {
+            device_uuid: deviceUUID // Simpan device UUID di metadata user
+          }
+        },
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (authData?.user) {
+        // 🔹 Step 3: Simpan device UUID ke profiles
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ 
+            device_uuid: deviceUUID 
+          })
+          .eq("email", email);
+
+        if (profileError) {
+          console.error("Error updating profile:", profileError);
+        }
+
+        setInfo("Silakan cek email Anda dan lakukan verifikasi sebelum login.");
+      } else {
+        setInfo("Jika email valid, link verifikasi telah dikirim.");
+      }
+
+      // 🔹 Reset form
+      setEmail("");
+      setPassword("");
+
+      // 🔹 Auto redirect ke login setelah 60 detik
+      setTimeout(() => navigate("/"), 60000);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setLoading(false);
-      setError("Terjadi kesalahan saat memeriksa email.");
-      return;
     }
-
-    if (existingUser) {
-      setLoading(false);
-      setError("Email sudah terdaftar, silakan login.");
-      return;
-    }
-
-    // 🔹 Step 2: lanjut daftar user baru
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: "https://tahfidzku.vercel.app/verified.html",
-      },
-    });
-
-    setLoading(false);
-
-    if (signUpError) {
-      setError(signUpError.message);
-      return;
-    }
-
-    if (data?.user) {
-      setInfo("Silakan cek email Anda dan lakukan verifikasi sebelum login.");
-    } else {
-      setInfo("Jika email valid, link verifikasi telah dikirim.");
-    }
-
-    // 🔹 Reset form
-    setEmail("");
-    setPassword("");
-
-    // 🔹 Auto redirect ke login setelah 60 detik
-    setTimeout(() => navigate("/"), 60000);
   };
 
   return (
