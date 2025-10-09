@@ -257,7 +257,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     if (selectedPremiums.length === 0) return;
 
     const premiumNames = selectedPremiums.map(index => `premium${index + 1}`).join(", ");
-    const totalHarga = selectedPremiums.length * 15000;
+    const totalHarga = selectedPremiums.length * 10000;
     
     const message = `Halo, saya ingin membuka ${premiumNames} untuk aplikasi Tahfidz Qur'an. Email: ${userEmail}`;
     const encodedMessage = encodeURIComponent(message);
@@ -529,7 +529,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
           <Modal.Title>Buka Surat Premium</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Pilih premium yang ingin dibuka (Rp 15.000 per premium):</p>
+          <p>Pilih premium yang ingin dibuka (Rp 10.000 per premium):</p>
           
           <div className="row">
             {userStatus.slice(0, 9).map((status, index) => (
@@ -575,7 +575,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
             <div className="d-flex align-items-center">
               {selectedPremiums.length > 0 && (
                 <span className="me-3 text-muted">
-                  Total: <strong>Rp {selectedPremiums.length * 15000}</strong>
+                  Total: <strong>Rp {selectedPremiums.length * 10000}</strong>
                 </span>
               )}
               <Button 
