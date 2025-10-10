@@ -386,7 +386,7 @@ function App2({ session }) {
                     paddingBottom: '40px'
                   }}>
                     <p>
-                      Untuk pertanyaan, saran, bantuan teknis, atau kerja sama, silakan hubungi kami:
+                      Untuk pertanyaan, saran, bantuan teknis, atau kerja sama, silahkan hubungi kami:
                     </p>
                     <ul>
                       <li>
