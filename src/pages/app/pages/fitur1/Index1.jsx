@@ -74,8 +74,14 @@ function Index1({ session, userStatus }) {
   return (
     <div className="app-container">
       <div ref={headerRef}>
-        <Header1 toggleSidebar={toggleSidebar} />
+        <Header1 
+        toggleSidebar={toggleSidebar} 
+    session={session} 
+    userStatus={userStatus} 
+        />
       </div>
+      
+
       
       <div ref={sidebarRef}>
         <Sidebar1 

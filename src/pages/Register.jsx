@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { v4 as uuidv4 } from "uuid";
+import { UserStorage } from "./app/utils/userStorage"; // ✅ IMPORT BARU
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -17,12 +17,12 @@ export default function Register() {
   const from = location.state?.from?.pathname || "/app2";
 
   useEffect(() => {
-    let uuid = localStorage.getItem("deviceUUID");
-    if (!uuid) {
-      uuid = uuidv4();
-      localStorage.setItem("deviceUUID", uuid);
-    }
-    setDeviceUUID(uuid);
+    const initializeDeviceUUID = async () => {
+      // ✅ GUNAKAN FUNGSI ASYNC KHUSUS
+      const uuid = await UserStorage.getPersistentDeviceUUIDAsync();
+      setDeviceUUID(uuid);
+    };
+    initializeDeviceUUID();
   }, []);
 
   const handleRegister = async (e) => {

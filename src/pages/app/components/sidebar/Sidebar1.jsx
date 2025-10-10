@@ -18,7 +18,7 @@ const Sidebar1 = forwardRef(({
   const [maxWidth, setMaxWidth] = useState("250px");
   const [openPremium, setOpenPremium] = useState(null);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false); // ✅ STATE BARU UNTUK MODAL LOGIN
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedPremiums, setSelectedPremiums] = useState([]);
   const [userEmail, setUserEmail] = useState("");
   const navigate = useNavigate();
@@ -57,12 +57,12 @@ const Sidebar1 = forwardRef(({
     toggleSidebar();
   };
 
-  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN USERSTORAGE
+  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN USERSTORAGE (SYNC)
   const handlePindahFitur = (targetFitur) => {
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
     toggleSidebar();
     
-    const lastPage = UserStorage.getHistory(session, targetFitur); // ✅ GUNAKAN USERSTORAGE
+    const lastPage = UserStorage.getHistory(session, targetFitur); // ✅ GUNAKAN USERSTORAGE SYNC
     
     if (lastPage && lastPage !== `/app2/app/${targetFitur}` && lastPage !== `/app2/app/${targetFitur}/panduan${targetFitur === 'fitur1' ? '1' : '2'}`) {
       navigate(lastPage);
@@ -74,11 +74,9 @@ const Sidebar1 = forwardRef(({
   // ✅ FUNGSI BARU: Handle tombol "BUKA SURAT TERKUNCI" dengan modal konfirmasi
   const handleBukaSurat = () => {
     if (!session) {
-      // ✅ JIKA BELUM LOGIN, TAMPILKAN MODAL KONFIRMASI DULU
       setShowLoginModal(true);
       toggleSidebar();
     } else {
-      // ✅ JIKA SUDAH LOGIN, LANGSUNG BUKA MODAL PREMIUM
       setShowPremiumModal(true);
       toggleSidebar();
     }
@@ -90,18 +88,18 @@ const Sidebar1 = forwardRef(({
     navigate('/login', { state: { from: location } });
   };
 
-  // ✅ PERBAIKAN: Fungsi hitung progress dengan UserStorage
+  // ✅ PERBAIKAN: Fungsi hitung progress dengan UserStorage (SYNC)
   const getSuratProgress = (suratNomor, totalAyat) => {
     let hafalCount = 0;
     for (let i = 1; i <= totalAyat; i++) {
-      if (UserStorage.getHafalan(session, suratNomor, i)) { // ✅ GUNAKAN USERSTORAGE
+      if (UserStorage.getHafalan(session, suratNomor, i)) { // ✅ GUNAKAN USERSTORAGE SYNC
         hafalCount++;
       }
     }
     return Math.round((hafalCount / totalAyat) * 100);
   };
 
-  // ✅ PERBAIKAN: Fungsi hitung progress premium dengan UserStorage
+  // ✅ PERBAIKAN: Fungsi hitung progress premium dengan UserStorage (SYNC)
   const getPremiumProgress = (suratListInPremium) => {
     let totalAyat = 0;
     let totalHafal = 0;
@@ -109,7 +107,7 @@ const Sidebar1 = forwardRef(({
     suratListInPremium.forEach(surat => {
       totalAyat += surat.jumlah_ayat;
       for (let i = 1; i <= surat.jumlah_ayat; i++) {
-        if (UserStorage.getHafalan(session, surat.nomor, i)) { // ✅ GUNAKAN USERSTORAGE
+        if (UserStorage.getHafalan(session, surat.nomor, i)) { // ✅ GUNAKAN USERSTORAGE SYNC
           totalHafal++;
         }
       }
@@ -239,6 +237,9 @@ const Sidebar1 = forwardRef(({
     
     // Tutup sidebar
     toggleSidebar();
+    
+    // Clear user-specific data
+    UserStorage.clearUserData(session);
     
     // Redirect ke beranda
     navigate("/app2");

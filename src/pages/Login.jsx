@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
-import { Link, useNavigate, useLocation } from "react-router-dom"; // ✅ IMPORT useLocation
-import { v4 as uuidv4 } from "uuid";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { UserStorage } from "./app/utils/userStorage"; // ✅ IMPORT BARU
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,20 +15,18 @@ export default function Login() {
   const [cooldown, setCooldown] = useState(null);
 
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ DAPATKAN LOCATION UNTUK REDIRECT
+  const location = useLocation();
   const [deviceUUID, setDeviceUUID] = useState("");
 
-  // ✅ Dapatkan halaman sebelumnya untuk redirect, default ke beranda
   const from = location.state?.from?.pathname || "/app2";
 
-  // ✅ UUID perangkat
   useEffect(() => {
-    let uuid = localStorage.getItem("deviceUUID");
-    if (!uuid) {
-      uuid = uuidv4();
-      localStorage.setItem("deviceUUID", uuid);
-    }
-    setDeviceUUID(uuid);
+    const initializeDeviceUUID = async () => {
+      // ✅ GUNAKAN FUNGSI ASYNC KHUSUS
+      const uuid = await UserStorage.getPersistentDeviceUUIDAsync();
+      setDeviceUUID(uuid);
+    };
+    initializeDeviceUUID();
   }, []);
 
   // ✅ Cek cooldown & status reset saat pertama kali load halaman

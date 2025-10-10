@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { Container, Button } from "react-bootstrap";
 import { useNavigate, Routes, Route, Link } from "react-router-dom";
@@ -11,7 +11,7 @@ function App2({ session }) {
   const [userStatus, setUserStatus] = useState([]);
   const navigate = useNavigate();
 
-  // ✅ AMBIL STATUS USER JIKA LOGIN
+  // ✅ UPDATE: AMBIL STATUS USER JIKA LOGIN dengan device validation
   useEffect(() => {
     const fetchUserStatus = async () => {
       if (session) {
@@ -19,22 +19,37 @@ function App2({ session }) {
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) return;
 
-          const { data, error } = await supabase
+          // ✅ GUNAKAN FUNGSI ASYNC UNTUK DEVICE VALIDATION
+          const currentDeviceUUID = await UserStorage.getPersistentDeviceUUIDAsync();
+          
+          // ✅ CEK DEVICE UUID DI DATABASE
+          const { data: profileData, error: profileError } = await supabase
             .from("profiles")
-            .select("status")
+            .select("device_uuid, status")
             .eq("email", user.email)
             .single();
 
-          if (error) {
-            console.error("Gagal ambil status:", error.message);
-          } else if (data && data.status) {
-            setUserStatus(data.status);
+          if (profileError) {
+            console.error("Gagal ambil profile:", profileError.message);
+          } else if (profileData) {
+            // ✅ VALIDASI DEVICE UUID
+            if (profileData.device_uuid && profileData.device_uuid !== currentDeviceUUID) {
+              // Device mismatch - force logout
+              await supabase.auth.signOut();
+              alert("Akun ini terdaftar di perangkat lain. Satu email hanya untuk satu perangkat.");
+              return;
+            }
+
+            // ✅ SET USER STATUS JIKA VALID
+            if (profileData.status) {
+              setUserStatus(profileData.status);
+            }
           }
         } catch (err) {
           console.error("Error fetchUserStatus:", err.message);
         }
       } else {
-        // ✅ JIKA GUEST, SET STATUS DEFAULT
+        // ✅ SET DEFAULT UNTUK GUEST
         setUserStatus([false,false,false,false,false,false,false,true,true,true]);
       }
       setLoading(false);

@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef, forwardRef } from "react";
 import { List, Search, X } from "react-bootstrap-icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import suratConfig from "../../data/SuratConfig";
-import { supabase } from "../../../../services/supabase";
+// HAPUS import supabase - tidak perlu karena kita pakai userStatus dari props
 
-const Header1 = forwardRef(({ toggleSidebar }, ref) => {
+const Header1 = forwardRef(({ toggleSidebar, session, userStatus }, ref) => {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
@@ -13,62 +13,18 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
   const [searchResults, setSearchResults] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
-  const [userStatus, setUserStatus] = useState([]);
   const searchInputRef = useRef(null);
 
   // ✅ PERBAIKAN: Deteksi fitur aktif
   const isFitur1 = currentPath.includes('/fitur1');
   const isFitur2 = currentPath.includes('/fitur2');
 
-  // ✅ Ambil status user dari Supabase
-  const fetchUserStatus = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("status")
-        .eq("email", user.email)
-        .single();
-
-      if (error) {
-        console.error("Gagal ambil status:", error.message);
-      } else if (data && data.status) {
-        let statusArray = [];
-        
-        if (Array.isArray(data.status)) {
-          statusArray = data.status;
-        } else if (typeof data.status === "object") {
-          statusArray = Object.values(data.status);
-        } else if (typeof data.status === "string") {
-          try {
-            statusArray = JSON.parse(data.status);
-          } catch (err) {
-            console.error("Gagal parse JSON:", err);
-          }
-        }
-        
-        if (statusArray.length !== 10) {
-          statusArray = [false, false, false, false, false, false, false, false, false, true];
-        }
-        
-        setUserStatus(statusArray);
-      }
-    } catch (err) {
-      console.error("Error fetchUserStatus:", err.message);
-    }
-  };
-
-  // 🔁 Ambil data status user
+  // ✅ PERBAIKAN: Dapatkan SEMUA surat yang tersedia (baik untuk user login maupun guest)
   useEffect(() => {
-    fetchUserStatus();
-  }, []);
+    const allSurat = [];
 
-  // ✅ Dapatkan hanya surat yang aktif (premium status = true)
-  useEffect(() => {
-    const allAktif = [];
-
+    // Jika user guest, tampilkan semua surat dari premium8, premium9, premium10
+    // Jika user login, tampilkan sesuai userStatus mereka
     const premiumMapping = {
       'premium1': 0,
       'premium2': 1, 
@@ -85,19 +41,25 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
     Object.keys(suratConfig).forEach((key) => {
       const premiumIndex = premiumMapping[key];
       
-      if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
+      // ✅ PERBAIKAN PENTING: Untuk guest, tampilkan premium8,9,10
+      // Untuk user login, tampilkan sesuai userStatus mereka
+      const shouldShow = session 
+        ? (premiumIndex !== undefined && userStatus && userStatus[premiumIndex] === true)
+        : (premiumIndex >= 7 && premiumIndex <= 9); // premium8,9,10 untuk guest
+      
+      if (shouldShow) {
         const premium = suratConfig[key];
         
         if (premium && Array.isArray(premium.data)) {
           premium.data.forEach((surat) => {
-            if (surat) allAktif.push(surat);
+            if (surat) allSurat.push(surat);
           });
         }
       }
     });
 
-    setAktifSuratList(allAktif);
-  }, [userStatus]);
+    setAktifSuratList(allSurat);
+  }, [session, userStatus]); // ✅ DEPENDENCY PADA SESSION DAN USERSTATUS
 
   // ✅ PERBAIKAN: Cek apakah di halaman surat (ada nomor surat di path)
   const isSuratPage = /\/\d+$/.test(currentPath);
@@ -113,7 +75,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
       .trim();
   };
 
-  // Handle pencarian - HANYA dari surat aktif
+  // Handle pencarian - dari surat yang TERSEDIA (baik guest maupun login)
   const handleSearch = (query) => {
     setSearchQuery(query);
     
@@ -136,9 +98,8 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
     setShowSuggestions(true);
   };
 
-  // ✅ PERBAIKAN: Handle pilih surat dari hasil pencarian - sesuaikan dengan fitur aktif
+  // ✅ PERBAIKAN: Handle pilih surat dari hasil pencarian
   const handleSelectSurat = (surat) => {
-    // PERBAIKAN: Tentukan base path berdasarkan fitur aktif
     let basePath;
     if (isFitur2) {
       basePath = "/app2/app/fitur2";
@@ -151,11 +112,11 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
     setShowSuggestions(false);
     setIsSearchActive(false);
     
-    // PERBAIKAN: Dispatch event untuk menghentikan audio di semua fitur
+    // Dispatch event untuk menghentikan audio di semua fitur
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
   };
 
-  // ✅ PERBAIKAN: Aktifkan mode search - stop audio terlebih dahulu
+  // ✅ PERBAIKAN: Aktifkan mode search
   const activateSearch = () => {
     // Stop semua audio sebelum membuka pencarian
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
@@ -206,12 +167,10 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
         left: 0,
         right: 0,
         zIndex: 1100,
-        // ✅ TAMBAH STYLE INI UNTUK MEMASTIKAN TIDAK BISA SCROLL
         touchAction: 'none',
         userSelect: 'none',
         WebkitUserSelect: 'none'
       }}
-      // ✅ EVENT HANDLER UNTUK BLOCK SEMUA SCROLL
       onWheel={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -225,7 +184,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
         e.stopPropagation();
       }}
     >
-      {/* Tombol Sidebar - gunakan ref dari parent */}
+      {/* Tombol Sidebar */}
       <button 
         ref={ref}
         className="btn btn-outline-light btn-sm" 
@@ -296,7 +255,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
               <X size={16} />
             </button>
 
-            {/* ✅ PERBAIKAN: Search Suggestions - TINGKATKAN Z-INDEX MENJADI 1300 */}
+            {/* ✅ PERBAIKAN: Search Suggestions */}
             {showSuggestions && searchResults.length > 0 && (
               <div
                 style={{
@@ -309,7 +268,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
                   borderRadius: "4px",
                   maxHeight: "200px",
                   overflowY: "auto",
-                  zIndex: 1300, // ✅ DARI 1200 KE 1300 - LEBIH TINGGI DARI HEADER FITUR2
+                  zIndex: 1300,
                   marginTop: "4px"
                 }}
               >
@@ -337,7 +296,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
               </div>
             )}
 
-            {/* ✅ PERBAIKAN: No results message - TINGKATKAN Z-INDEX MENJADI 1300 */}
+            {/* ✅ PERBAIKAN: No results message */}
             {showSuggestions && searchQuery.length > 0 && searchResults.length === 0 && (
               <div
                 style={{
@@ -351,7 +310,7 @@ const Header1 = forwardRef(({ toggleSidebar }, ref) => {
                   padding: "8px 12px",
                   color: "#6c757d",
                   fontSize: "14px",
-                  zIndex: 1300, // ✅ DARI 1200 KE 1300 - LEBIH TINGGI DARI HEADER FITUR2
+                  zIndex: 1300,
                   marginTop: "4px"
                 }}
               >

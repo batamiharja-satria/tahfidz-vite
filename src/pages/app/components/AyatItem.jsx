@@ -30,12 +30,12 @@ const getAllSuratFromConfig = (config) => {
   return all;
 };
 
-const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => { // ✅ TAMBAH SESSION PROP
+const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isHafal, setIsHafal] = useState(false);
 
-  // ✅ PERBAIKAN: Gunakan user-specific key
+  // ✅ PERBAIKAN: Kembali ke SYNCHRONOUS
   useEffect(() => {
     const hafalStatus = UserStorage.getHafalan(session, suratId, ayat.nomor);
     setIsHafal(hafalStatus);
@@ -44,7 +44,7 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => { // ✅ TAMBAH 
   const toggleHafalan = () => {
     const newStatus = !isHafal;
     setIsHafal(newStatus);
-    // ✅ PERBAIKAN: Simpan dengan user-specific key
+    // ✅ PERBAIKAN: Kembali ke SYNCHRONOUS
     UserStorage.setHafalan(session, suratId, ayat.nomor, newStatus);
   };
 
