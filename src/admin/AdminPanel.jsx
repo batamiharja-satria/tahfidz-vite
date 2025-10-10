@@ -391,16 +391,8 @@ const AdminPanel = () => {
                     </div>
                   </div>
                 ))}
-                
-                {/* ✅ TAMBAHAN: Info premium8-10 yang gratis */}
-                <div className="premium-free-section">
-                  <h4>Premium Gratis (Auto Aktif)</h4>
-                  <div className="premium-free-grid">
-                    <div className="premium-free-item">Premium 8</div>
-                    <div className="premium-free-item">Premium 9</div>
-                    <div className="premium-free-item">Premium 10</div>
-                  </div>
-                </div>
+              
+
               </div>
             </div>
             
