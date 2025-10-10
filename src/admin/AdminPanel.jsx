@@ -56,10 +56,14 @@ const AdminPanel = () => {
     }
   }, []);
 
-  // ✅ LOGOUT
+  // ✅ LOGOUT dengan reset form
   const handleLogout = () => {
     setIsLoggedIn(false);
     localStorage.removeItem("adminLoggedIn");
+    // ✅ RESET INPUT FORM
+    setLoginEmail("");
+    setLoginPassword("");
+    setLoginError("");
   };
 
   // ✅ FUNGSI YANG UDAH ADA
@@ -129,9 +133,10 @@ const AdminPanel = () => {
     }
   };
 
+  // ✅ PERBAIKAN: Hitung hanya premium1-7 (bukan 9)
   const getActivePremiumCount = (statusArray) => {
     if (!statusArray || !Array.isArray(statusArray)) return 0;
-    return statusArray.slice(0, 9).filter(Boolean).length;
+    return statusArray.slice(0, 7).filter(Boolean).length; // ✅ Hanya premium1-7
   };
 
   const getTotalActivePremiums = () => {
@@ -167,35 +172,27 @@ const AdminPanel = () => {
   // ✅ RENDER LOGIN JIKA BELUM LOGIN
   if (!isLoggedIn) {
     return (
-      
-      
-                 
-           
-
-
-      <div className="admin-container"><Link 
-  to="/" 
-  style={{
-    padding: '0px 0px',
-    background: '',
-    color: 'black',
-    border: 'none',
-    borderRadius: '0px',
-    textDecoration: 'none',
-    fontSize: '1.5rem', // ✅ TAMBAH INI - ukuran lebih besar
-    fontWeight: 'bold',  // ✅ OPSIONAL - biar lebih tebal
-    display: 'inline-block',
-    lineHeight: '1'
-  }}
->
-  ← 
-</Link>
+      <div className="admin-container">
+        <Link 
+          to="/" 
+          style={{
+            padding: '0px 0px',
+            background: '',
+            color: 'black',
+            border: 'none',
+            borderRadius: '0px',
+            textDecoration: 'none',
+            fontSize: '1.5rem',
+            fontWeight: 'bold',
+            display: 'inline-block',
+            lineHeight: '1'
+          }}
+        >
+          ← 
+        </Link>
 
         <div className="login-section">
-          
-          
-       <div className="login-card">
-            
+          <div className="login-card">
             <h2>🔐 Admin Login</h2>
             <form onSubmit={handleAdminLogin}>
               <input
@@ -219,11 +216,9 @@ const AdminPanel = () => {
                 {loginLoading ? "Loading..." : "Login"}
               </button>
             </form>
-
           </div>
         </div>
       </div>
-      
     );
   }
 
@@ -252,7 +247,6 @@ const AdminPanel = () => {
             <p>Kelola status premium user</p>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-           
             <button 
               onClick={handleLogout}
               style={{
@@ -321,7 +315,7 @@ const AdminPanel = () => {
                 <div className="user-header">
                   <div className="user-email">{user.email}</div>
                   <div className={`premium-badge ${getActivePremiumCount(user.status) > 0 ? 'active' : 'inactive'}`}>
-                    {getActivePremiumCount(user.status)}/9 Premium
+                    {getActivePremiumCount(user.status)}/7 Premium
                   </div>
                 </div>
                 
@@ -334,7 +328,7 @@ const AdminPanel = () => {
                   <div className="detail-item">
                     <span className="label">Status:</span>
                     <div className="premium-tags">
-                      {user.status && user.status.slice(0, 3).map((isActive, idx) => (
+                      {user.status && user.status.slice(0, 7).map((isActive, idx) => ( // ✅ PERBAIKAN: Hanya tampilkan 7 premium
                         <span
                           key={idx}
                           className={`premium-tag ${isActive ? 'active' : ''}`}
@@ -342,11 +336,6 @@ const AdminPanel = () => {
                           P{idx + 1}
                         </span>
                       ))}
-                      {user.status && user.status.length > 3 && (
-                        <span className="premium-more">
-                          +{user.status.slice(3, 9).filter(Boolean).length} lagi
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -377,12 +366,13 @@ const AdminPanel = () => {
                 <strong>{selectedUser.email}</strong>
                 <div className="premium-summary">
                   {getActivePremiumCount(selectedUser.status)} premium aktif · 
-                  Total: Rp {(getActivePremiumCount(selectedUser.status) * 15000).toLocaleString()}
+                  Total: Rp {(getActivePremiumCount(selectedUser.status) * 10000).toLocaleString()} {/* ✅ PERBAIKAN: 10rb bukan 1rb */}
                 </div>
               </div>
               
               <div className="premium-grid">
-                {selectedUser.status && selectedUser.status.slice(0, 9).map((isActive, index) => (
+                {/* ✅ PERBAIKAN: Hanya premium1-7 yang bisa di-edit */}
+                {selectedUser.status && selectedUser.status.slice(0, 7).map((isActive, index) => (
                   <div
                     key={index}
                     className={`premium-item ${isActive ? 'active' : ''}`}
@@ -397,10 +387,20 @@ const AdminPanel = () => {
                     </div>
                     <div className="premium-info">
                       <div className="premium-name">Premium {index + 1}</div>
-                      <div className="premium-price">Rp 15.000</div>
+                      <div className="premium-price">Rp 10.000</div>
                     </div>
                   </div>
                 ))}
+                
+                {/* ✅ TAMBAHAN: Info premium8-10 yang gratis */}
+                <div className="premium-free-section">
+                  <h4>Premium Gratis (Auto Aktif)</h4>
+                  <div className="premium-free-grid">
+                    <div className="premium-free-item">Premium 8</div>
+                    <div className="premium-free-item">Premium 9</div>
+                    <div className="premium-free-item">Premium 10</div>
+                  </div>
+                </div>
               </div>
             </div>
             
