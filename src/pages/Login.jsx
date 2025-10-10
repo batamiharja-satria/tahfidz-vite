@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { UserStorage } from "./app/utils/userStorage"; // ✅ IMPORT BARU
+import { UserStorage } from "./app/utils/userStorage";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -22,7 +22,6 @@ export default function Login() {
 
   useEffect(() => {
     const initializeDeviceUUID = async () => {
-      // ✅ GUNAKAN FUNGSI ASYNC KHUSUS
       const uuid = await UserStorage.getPersistentDeviceUUIDAsync();
       setDeviceUUID(uuid);
     };
@@ -84,12 +83,16 @@ export default function Login() {
       }
 
       // 🔹 Step 3: Login dengan Supabase Auth
-      const { error: loginError } = await supabase.auth.signInWithPassword({
+      const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (loginError) throw loginError;
+
+      // ✅ MIGRASIKAN DATA DARI GUEST KE USER
+      const guestDeviceUUID = deviceUUID; // UUID sebelum login
+      await UserStorage.migrateGuestToUser(loginData.session, guestDeviceUUID);
 
       // 🔹 Step 4: Jika device_uuid belum ada, update dengan device UUID saat ini
       if (!profileData.device_uuid) {
@@ -159,23 +162,23 @@ export default function Login() {
   return (
     <div className="container" style={{ padding: "2rem" }}>
       
-<Link 
-  to="/" 
-  style={{
-    padding: '0px 0px',
-    background: '',
-    color: 'black',
-    border: 'none',
-    borderRadius: '0px',
-    textDecoration: 'none',
-    fontSize: '1.5rem', // ✅ TAMBAH INI - ukuran lebih besar
-    fontWeight: 'bold',  // ✅ OPSIONAL - biar lebih tebal
-    display: 'inline-block',
-    lineHeight: '1'
-  }}
->
-  ← 
-</Link>
+      <Link 
+        to="/" 
+        style={{
+          padding: '0px 0px',
+          background: '',
+          color: 'black',
+          border: 'none',
+          borderRadius: '0px',
+          textDecoration: 'none',
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
+          display: 'inline-block',
+          lineHeight: '1'
+        }}
+      >
+        ← 
+      </Link>
       
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
