@@ -173,22 +173,24 @@ const AdminPanel = () => {
            
 
 
-      <div className="admin-container">
-         <Link 
-              to="/" 
-              style={{
-                padding: '0px 0px',
-                
-                background: '',
-                color: 'black',
-                border: 'none',
-                borderRadius: '0px',
-                
-                textDecoration: 'none'
-              }}
-            >
-              ← 
-            </Link>
+      <div className="admin-container"><Link 
+  to="/" 
+  style={{
+    padding: '0px 0px',
+    background: '',
+    color: 'black',
+    border: 'none',
+    borderRadius: '0px',
+    textDecoration: 'none',
+    fontSize: '1.5rem', // ✅ TAMBAH INI - ukuran lebih besar
+    fontWeight: 'bold',  // ✅ OPSIONAL - biar lebih tebal
+    display: 'inline-block',
+    lineHeight: '1'
+  }}
+>
+  ← 
+</Link>
+
         <div className="login-section">
           
           

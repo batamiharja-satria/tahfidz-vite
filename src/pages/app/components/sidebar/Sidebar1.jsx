@@ -4,7 +4,7 @@ import { Modal, Button, Form } from "react-bootstrap";
 
 import suratConfig from "../../data/SuratConfig";
 import { supabase } from "../../../../services/supabase";
-import { UserStorage } from "../../utils/userStorage"; // ✅ GUNAKAN USERSTORAGE
+import { UserStorage } from "../../utils/userStorage";
 
 const Sidebar1 = forwardRef(({ 
   isOpen, 
@@ -50,6 +50,17 @@ const Sidebar1 = forwardRef(({
       setUserEmail(session.user.email);
     }
   }, [session]);
+  
+  // ✅ PERBAIKAN: Handle klik beranda - navigasi ke root App2
+  const handleBerandaClick = () => {
+    window.dispatchEvent(new CustomEvent('stopAllAudio'));
+    toggleSidebar();
+    
+    // ✅ PASTIKAN NAVIGASI KE BERANDA TANPA REDIRECT
+    if (location.pathname !== '/app2') {
+      navigate("/app2", { replace: true });
+    }
+  };
 
   // ✅ PERBAIKAN: Handle klik surat - stop audio sebelum pindah
   const handleSuratClick = () => {
@@ -57,12 +68,12 @@ const Sidebar1 = forwardRef(({
     toggleSidebar();
   };
 
-  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN USERSTORAGE (SYNC)
+  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN USERSTORAGE
   const handlePindahFitur = (targetFitur) => {
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
     toggleSidebar();
     
-    const lastPage = UserStorage.getHistory(session, targetFitur); // ✅ GUNAKAN USERSTORAGE SYNC
+    const lastPage = UserStorage.getHistory(session, targetFitur);
     
     if (lastPage && lastPage !== `/app2/app/${targetFitur}` && lastPage !== `/app2/app/${targetFitur}/panduan${targetFitur === 'fitur1' ? '1' : '2'}`) {
       navigate(lastPage);
@@ -88,18 +99,18 @@ const Sidebar1 = forwardRef(({
     navigate('/login', { state: { from: location } });
   };
 
-  // ✅ PERBAIKAN: Fungsi hitung progress dengan UserStorage (SYNC)
+  // ✅ PERBAIKAN: Fungsi hitung progress dengan UserStorage
   const getSuratProgress = (suratNomor, totalAyat) => {
     let hafalCount = 0;
     for (let i = 1; i <= totalAyat; i++) {
-      if (UserStorage.getHafalan(session, suratNomor, i)) { // ✅ GUNAKAN USERSTORAGE SYNC
+      if (UserStorage.getHafalan(session, suratNomor, i)) {
         hafalCount++;
       }
     }
     return Math.round((hafalCount / totalAyat) * 100);
   };
 
-  // ✅ PERBAIKAN: Fungsi hitung progress premium dengan UserStorage (SYNC)
+  // ✅ PERBAIKAN: Fungsi hitung progress premium dengan UserStorage
   const getPremiumProgress = (suratListInPremium) => {
     let totalAyat = 0;
     let totalHafal = 0;
@@ -107,7 +118,7 @@ const Sidebar1 = forwardRef(({
     suratListInPremium.forEach(surat => {
       totalAyat += surat.jumlah_ayat;
       for (let i = 1; i <= surat.jumlah_ayat; i++) {
-        if (UserStorage.getHafalan(session, surat.nomor, i)) { // ✅ GUNAKAN USERSTORAGE SYNC
+        if (UserStorage.getHafalan(session, surat.nomor, i)) {
           totalHafal++;
         }
       }
@@ -145,7 +156,6 @@ const Sidebar1 = forwardRef(({
     Object.keys(suratConfig).forEach((key) => {
       const premiumIndex = premiumMapping[key];
       
-      // ✅ GUNAKAN USERSTATUS DARI PROP (TIDAK PERLU FETCH LAGI)
       if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
         const premium = suratConfig[key];
         
@@ -232,19 +242,11 @@ const Sidebar1 = forwardRef(({
 
   // ✅ FUNGSI BARU: Handle logout dengan redirect ke beranda
   const handleLogout = async () => {
-    // Stop audio sebelum logout
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
-    
-    // Tutup sidebar
     toggleSidebar();
-    
-    // Clear user-specific data
-    UserStorage.clearUserData(session);
-    
-    // Redirect ke beranda
+    await UserStorage.clearUserData(session);
     navigate("/app2");
     
-    // Logout dari Supabase
     try {
       await supabase.auth.signOut();
     } catch (err) {
@@ -359,16 +361,16 @@ const Sidebar1 = forwardRef(({
             {isFitur1 ? "🎧 PINDAH KE ISTIMA'" : "📖 PINDAH KE TAHFIDZ"}
           </button>
         </li>
-        
+
+        {/* ✅ PERBAIKAN: Tombol BERANDA menggunakan fungsi handleBerandaClick */}
         <li className="nav-item">
-          <Link
-            to="/app2"
-            className="nav-link"
+          <button
             style={styles.navLink}
-            onClick={handleSuratClick}
+            onClick={handleBerandaClick}
+            className="nav-link text-white"
           >
             BERANDA
-          </Link>
+          </button>
         </li>
 
         {/* ✅ Panduan - TOGGLE berdasarkan halaman aktif */}

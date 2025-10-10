@@ -234,23 +234,20 @@ export const UserStorage = {
     }
   },
 
-  // ✅ FUNGSI BARU: Safe navigation dengan fallback (SYNC)
+  // ✅ PERBAIKAN: Safe navigation sesuai permintaan
   safeNavigate: (session, feature, navigate) => {
-    try {
-      UserStorage.initializeDefaultData(session);
-      const lastPage = UserStorage.getHistory(session, feature);
-      
-      if (lastPage && lastPage !== `/app2/app/${feature}` && 
-          lastPage !== `/app2/app/${feature}/panduan${feature === 'fitur1' ? '1' : '2'}`) {
-        navigate(lastPage);
-      } else {
-        // Fallback ke halaman panduan
-        navigate(`/app2/app/${feature}/panduan${feature === 'fitur1' ? '1' : '2'}`);
-      }
-    } catch (error) {
-      console.error('Error safeNavigate:', error);
-      // Fallback hardcoded
-      navigate(`/app2/app/${feature}/panduan${feature === 'fitur1' ? '1' : '2'}`);
+    // Jika ingin ke beranda, langsung navigate
+    if (feature === 'beranda') {
+      navigate('/app2');
+      return;
+    }
+    
+    // Logic existing untuk fitur1 dan fitur2...
+    const lastPage = UserStorage.getHistory(session, feature);
+    if (lastPage && lastPage !== `/app2/app/${feature}`) {
+      navigate(lastPage);
+    } else {
+      navigate(`/app2/app/${feature}`);
     }
   },
 

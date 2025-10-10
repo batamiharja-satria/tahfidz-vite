@@ -4,7 +4,7 @@ import Sidebar1 from "../../components/sidebar/Sidebar1";
 import Header1 from "../../components/header/Header1";
 import Panduan1 from "./Panduan1";
 import TampilanSurat from "../../data/TampilanSurat";
-import { UserStorage } from "../../utils/userStorage"; // ✅ IMPORT BARU
+import { UserStorage } from "../../utils/userStorage";
 
 function TampilanSuratWrapper({ session, userStatus }) {
   const { nomor } = useParams();
@@ -13,7 +13,7 @@ function TampilanSuratWrapper({ session, userStatus }) {
 
 function Index1({ session, userStatus }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false); // ✅ STATE BARU UNTUK INIT
+  const [isInitialized, setIsInitialized] = useState(false);
   const sidebarRef = useRef(null);
   const headerRef = useRef(null);
   const location = useLocation();
@@ -21,18 +21,11 @@ function Index1({ session, userStatus }) {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // ✅ PERBAIKAN: SIMPAN HISTORY SETIAP KALI ROUTE BERUBAH
+  // ✅ PERBAIKAN: Pastikan userStatus tersedia sebelum inisialisasi
   useEffect(() => {
-    if (location.pathname && 
-        location.pathname !== '/app2/app/fitur1' && 
-        location.pathname !== '/app2/app/fitur1/') {
-      UserStorage.setHistory(session, 'fitur1', location.pathname);
-    }
-  }, [location.pathname, session]);
-
-  // ✅ PERBAIKAN: CEK HISTORY SAAT PERTAMA KALI LOAD
-  useEffect(() => {
-    if (!isInitialized) {
+    if (userStatus && userStatus.length > 0 && !isInitialized) {
+      UserStorage.initializeDefaultData(session);
+      
       const lastPage = UserStorage.getHistory(session, 'fitur1');
       
       if (lastPage && lastPage !== '/app2/app/fitur1' && lastPage !== '/app2/app/fitur1/') {
@@ -43,7 +36,16 @@ function Index1({ session, userStatus }) {
       
       setIsInitialized(true);
     }
-  }, [isInitialized, navigate, session]);
+  }, [isInitialized, navigate, session, userStatus]);
+
+  // ✅ PERBAIKAN: SIMPAN HISTORY dengan kondisi yang lebih safe
+  useEffect(() => {
+    if (userStatus && userStatus.length > 0 && location.pathname && 
+        location.pathname !== '/app2/app/fitur1' && 
+        location.pathname !== '/app2/app/fitur1/') {
+      UserStorage.setHistory(session, 'fitur1', location.pathname);
+    }
+  }, [location.pathname, session, userStatus]);
 
   // ✅ Fungsi untuk menutup sidebar ketika klik di luar
   const closeSidebar = () => {
@@ -71,17 +73,24 @@ function Index1({ session, userStatus }) {
     };
   }, [sidebarOpen]);
 
+  // ✅ TAMPILKAN LOADING JIKA USERSTATUS BELUM SIAP
+  if (!userStatus || userStatus.length === 0) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <p>Mempersiapkan fitur Tahfidz...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       <div ref={headerRef}>
         <Header1 
-        toggleSidebar={toggleSidebar} 
-    session={session} 
-    userStatus={userStatus} 
+          toggleSidebar={toggleSidebar} 
+          session={session} 
+          userStatus={userStatus} 
         />
       </div>
-      
-
       
       <div ref={sidebarRef}>
         <Sidebar1 

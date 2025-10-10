@@ -1,23 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { Container, Button } from "react-bootstrap";
-import { useNavigate, Routes, Route, Link } from "react-router-dom";
+import { useNavigate, Routes, Route, Link, useLocation } from "react-router-dom";
 import Index1 from "./pages/fitur1/Index1";
 import Index2 from "./pages/fitur2/Index2";
-import { UserStorage } from "./utils/userStorage"; // ✅ IMPORT BARU
+import { UserStorage } from "./utils/userStorage";
 
 function App2({ session }) {
   const [loading, setLoading] = useState(true);
   const [userStatus, setUserStatus] = useState([]);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // ✅ UPDATE: AMBIL STATUS USER JIKA LOGIN dengan device validation
+  // ✅ PERBAIKAN: Default userStatus untuk guest
+  const defaultGuestStatus = [false,false,false,false,false,false,false,true,true,true];
+
+  // ✅ UPDATE: AMBIL STATUS USER dengan handling yang lebih robust
   useEffect(() => {
     const fetchUserStatus = async () => {
-      if (session) {
-        try {
+      try {
+        if (session) {
           const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return;
+          if (!user) {
+            setUserStatus(defaultGuestStatus);
+            setLoading(false);
+            return;
+          }
 
           // ✅ GUNAKAN FUNGSI ASYNC UNTUK DEVICE VALIDATION
           const currentDeviceUUID = await UserStorage.getPersistentDeviceUUIDAsync();
@@ -31,32 +39,51 @@ function App2({ session }) {
 
           if (profileError) {
             console.error("Gagal ambil profile:", profileError.message);
+            setUserStatus(defaultGuestStatus);
           } else if (profileData) {
             // ✅ VALIDASI DEVICE UUID
             if (profileData.device_uuid && profileData.device_uuid !== currentDeviceUUID) {
-              // Device mismatch - force logout
               await supabase.auth.signOut();
               alert("Akun ini terdaftar di perangkat lain. Satu email hanya untuk satu perangkat.");
+              setUserStatus(defaultGuestStatus);
+              setLoading(false);
               return;
             }
 
             // ✅ SET USER STATUS JIKA VALID
-            if (profileData.status) {
+            if (profileData.status && Array.isArray(profileData.status)) {
               setUserStatus(profileData.status);
+            } else {
+              setUserStatus(defaultGuestStatus);
             }
+          } else {
+            setUserStatus(defaultGuestStatus);
           }
-        } catch (err) {
-          console.error("Error fetchUserStatus:", err.message);
+        } else {
+          // ✅ SET DEFAULT UNTUK GUEST dengan pasti
+          setUserStatus(defaultGuestStatus);
         }
-      } else {
-        // ✅ SET DEFAULT UNTUK GUEST
-        setUserStatus([false,false,false,false,false,false,false,true,true,true]);
+      } catch (err) {
+        console.error("Error fetchUserStatus:", err.message);
+        setUserStatus(defaultGuestStatus);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchUserStatus();
   }, [session]);
+
+  // ✅ PERBAIKAN: Handle navigation dengan userStatus yang sudah ter-initialize
+  useEffect(() => {
+    if (!loading && userStatus.length > 0) {
+      // ✅ INIT DEFAULT DATA UNTUK GUEST ATAU USER
+      UserStorage.initializeDefaultData(session);
+      
+      // ✅ HAPUS REDIRECT OTOMATIS KE FITUR1 - BIARKAN USER DI BERANDA
+      // Tidak ada redirect otomatis lagi
+    }
+  }, [loading, userStatus, session]);
 
   // ✅ CEK SESSION SAAT KOMPONEN MOUNT
   useEffect(() => {
@@ -67,7 +94,7 @@ function App2({ session }) {
         if (error) {
           console.error("Error checking session:", error);
         }
-        setLoading(false);
+        // Loading akan di-set false di fetchUserStatus
       } catch (err) {
         console.error("Session check failed:", err);
         setLoading(false);
@@ -79,7 +106,7 @@ function App2({ session }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_OUT') {
-          setUserStatus([false,false,false,false,false,false,false,true,true,true]);
+          setUserStatus(defaultGuestStatus);
         }
         setLoading(false);
       }
@@ -95,6 +122,17 @@ function App2({ session }) {
       <Container className="d-flex justify-content-center align-items-center vh-100">
         <div className="text-center">
           <p>Memuat session...</p>
+        </div>
+      </Container>
+    );
+  }
+
+  // ✅ PASTIKAN USERSTATUS TIDAK KOSONG SEBELUM RENDER
+  if (userStatus.length === 0) {
+    return (
+      <Container className="d-flex justify-content-center align-items-center vh-100">
+        <div className="text-center">
+          <p>Mempersiapkan aplikasi...</p>
         </div>
       </Container>
     );
@@ -119,26 +157,28 @@ function App2({ session }) {
               backgroundAttachment: "fixed",
             }}
           >
+      
             {/* Header - TEXT CENTER */}
             <h1 className="fw-bold display-5 mb-2 text-center">Assalamu 'alaikum</h1>
-            <p className=" fs-6 text-center">
-              Selamat Datang di Aplikasi Qur'an</p> 
+            <p className="fs-6 text-center">
+              Selamat Datang di Aplikasi Qur'an
+            </p> 
               
-              {!session ? (
-                <div className="text-center">
-                  <Link
-                    to="/login"
-                    className=" text-success "
-                    style={{ textDecoration: "none" }}
-                  >
-                    Login
-                  </Link>
-                </div>
-              ) : (
-               <div className="text-center">
-                <span className="text-success ">{session.user.email}</span>
-                </div>
-              )}
+            {!session ? (
+              <div className="text-center">
+                <Link
+                  to="/login"
+                  className="text-success"
+                  style={{ textDecoration: "none" }}
+                >
+                  Login
+                </Link>
+              </div>
+            ) : (
+              <div className="text-center">
+                <span className="text-success">{session.user.email}</span>
+              </div>
+            )}
 
             {/* Kartu Fitur */}
             <div className="d-flex justify-content-center gap-3 flex-wrap mt-4">
@@ -151,17 +191,11 @@ function App2({ session }) {
                   backdropFilter: "blur(8px)",
                   border: "1px solid rgba(255,255,255,0.2)",
                   borderRadius: "15px",
-                  transition: "all 0.3s ease",
+                  transition: "all 0.3s ease", // ✅ PERBAIKAN: String ditutup dengan benar
                 }}
                 onClick={() => {
-                  // ✅ PERBAIKAN: Gunakan UserStorage untuk history yang user-specific
-                  const lastPage = UserStorage.getHistory(session, 'fitur1');
-                  
-                  if (lastPage && lastPage !== '/app2/app/fitur1' && lastPage !== '/app2/app/fitur1/panduan1') {
-                    navigate(lastPage);
-                  } else {
-                    navigate("app/fitur1");
-                  }
+                  // ✅ NAVIGASI LANGSUNG KE FITUR1 - TANPA REDIRECT OTOMATIS
+                  navigate('/app2/app/fitur1');
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = "translateY(-5px)";
@@ -185,17 +219,11 @@ function App2({ session }) {
                   backdropFilter: "blur(8px)",
                   border: "1px solid rgba(255,255,255,0.2)",
                   borderRadius: "15px",
-                  transition: "all 0.3s ease",
+                  transition: "all 0.3s ease", // ✅ PERBAIKAN: String ditutup dengan benar
                 }}
                 onClick={() => {
-                  // ✅ PERBAIKAN: Gunakan UserStorage untuk history yang user-specific
-                  const lastPage = UserStorage.getHistory(session, 'fitur2');
-                  
-                  if (lastPage && lastPage !== '/app2/app/fitur2' && lastPage !== '/app2/app/fitur2/panduan2') {
-                    navigate(lastPage);
-                  } else {
-                    navigate("app/fitur2");
-                  }
+                  // ✅ NAVIGASI LANGSUNG KE FITUR2 - TANPA REDIRECT OTOMATIS
+                  navigate('/app2/app/fitur2');
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.transform = "translateY(-5px)";
@@ -210,7 +238,7 @@ function App2({ session }) {
                 <p className="small text-muted">Mendengarkan Al-Qur'an</p>
               </div>
             </div>
-
+            
             {/* Footer Quote */}
             <div
               className="card shadow-sm p-4 mt-5 text-muted small text-center"
@@ -249,15 +277,15 @@ function App2({ session }) {
                 Kontak
               </a>
                {/* ✅ TAMBAHKAN LINK DUKUNGAN SAWERIA DI SINI */}
-  <a
-    href="https://saweria.co/batamiharja"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="me-3 text-success"
-    style={{ textDecoration: "none" }}
-  >
-    Dukungan
-  </a>
+              <a
+                href="https://saweria.co/batamiharja"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="me-3 text-success"
+                style={{ textDecoration: "none" }}
+              >
+                Dukungan
+              </a>
               <a
                 href="#download"
                 className="me-3 text-success"
@@ -494,16 +522,16 @@ function App2({ session }) {
                 </div>
               </div>
             </div>
-            
-            {/* Footer Hak Cipta */}
+
+{/* Footer Hak Cipta */}
             <footer className="mt-4 text-center">
-              <p className="small text-muted">&copy; 2024 TahfidzKu. All rights reserved.</p>
+              <p className="small text-muted">&copy; 2025 BatamApp. All rights reserved.</p>
             </footer>
           </Container>
         }
       />
 
-      {/* ✅ PERBAIKAN PENTING: TAMBAHKAN ROUTE UNTUK FITUR1 DAN FITUR2 */}
+      {/* ✅ ROUTE UNTUK FITUR1 DAN FITUR2 - PERBAIKAN PATH */}
       <Route 
         path="app/fitur1/*" 
         element={<Index1 session={session} userStatus={userStatus} />} 
