@@ -1,21 +1,27 @@
 import React, { useEffect, useState, forwardRef } from "react";
 import { Link, useLocation, useNavigate} from "react-router-dom";
 import { Modal, Button, Form } from "react-bootstrap";
-import Logout from "../../../../components/Logout";
+
 import suratConfig from "../../data/SuratConfig";
 import { supabase } from "../../../../services/supabase";
-import { HistoryManager } from "../../utils/history"; // ✅ IMPORT HISTORY MANAGER
+import { UserStorage } from "../../utils/userStorage"; // ✅ GUNAKAN USERSTORAGE
 
-const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitur1" }, ref) => {
+const Sidebar1 = forwardRef(({ 
+  isOpen, 
+  toggleSidebar, 
+  basePath = "/app2/app/fitur1", 
+  session, 
+  userStatus
+}, ref) => {
   const location = useLocation();
   const [suratList, setSuratList] = useState([]);
   const [maxWidth, setMaxWidth] = useState("250px");
   const [openPremium, setOpenPremium] = useState(null);
-  const [userStatus, setUserStatus] = useState([]);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false); // ✅ STATE BARU UNTUK MODAL LOGIN
   const [selectedPremiums, setSelectedPremiums] = useState([]);
   const [userEmail, setUserEmail] = useState("");
-  const navigate = useNavigate(); // ✅ TAMBAHKAN useNavigate
+  const navigate = useNavigate();
 
   // ✅ Cek apakah sedang di fitur1 atau fitur2
   const isFitur1 = location.pathname.includes('/fitur1');
@@ -24,54 +30,40 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
   // ✅ EFFECT UNTUK MENGONTROL BODY SCROLL
   useEffect(() => {
     if (isOpen) {
-      // Sidebar terbuka - disable body scroll
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
     } else {
-      // Sidebar tertutup - enable body scroll
       document.body.style.overflow = 'auto';
       document.body.style.position = 'static';
     }
 
-    // Cleanup
     return () => {
       document.body.style.overflow = 'auto';
       document.body.style.position = 'static';
     };
   }, [isOpen]);
 
-  // ✅ Ambil email user
+  // ✅ Ambil email user dari session
   useEffect(() => {
-    const getUserEmail = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email);
-      }
-    };
-    getUserEmail();
-  }, []);
+    if (session) {
+      setUserEmail(session.user.email);
+    }
+  }, [session]);
 
   // ✅ PERBAIKAN: Handle klik surat - stop audio sebelum pindah
   const handleSuratClick = () => {
-    // Stop semua audio sebelum pindah surat
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
     toggleSidebar();
   };
 
-  // ✅ FUNGSI BARU: Handle pindah fitur
+  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN USERSTORAGE
   const handlePindahFitur = (targetFitur) => {
-    // Stop semua audio sebelum pindah fitur
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
-    
-    // Tutup sidebar
     toggleSidebar();
     
-    // Cek history untuk fitur tujuan
-    const lastPage = HistoryManager.getLastPage(targetFitur);
-    console.log(`Last page ${targetFitur}:`, lastPage);
+    const lastPage = UserStorage.getHistory(session, targetFitur); // ✅ GUNAKAN USERSTORAGE
     
-    // Navigasi ke halaman terakhir atau panduan
     if (lastPage && lastPage !== `/app2/app/${targetFitur}` && lastPage !== `/app2/app/${targetFitur}/panduan${targetFitur === 'fitur1' ? '1' : '2'}`) {
       navigate(lastPage);
     } else {
@@ -79,19 +71,37 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     }
   };
 
-  // ✅ Fungsi hitung progress per surat
+  // ✅ FUNGSI BARU: Handle tombol "BUKA SURAT TERKUNCI" dengan modal konfirmasi
+  const handleBukaSurat = () => {
+    if (!session) {
+      // ✅ JIKA BELUM LOGIN, TAMPILKAN MODAL KONFIRMASI DULU
+      setShowLoginModal(true);
+      toggleSidebar();
+    } else {
+      // ✅ JIKA SUDAH LOGIN, LANGSUNG BUKA MODAL PREMIUM
+      setShowPremiumModal(true);
+      toggleSidebar();
+    }
+  };
+
+  // ✅ FUNGSI BARU: Handle redirect ke login setelah tutup modal
+  const handleRedirectToLogin = () => {
+    setShowLoginModal(false);
+    navigate('/login', { state: { from: location } });
+  };
+
+  // ✅ PERBAIKAN: Fungsi hitung progress dengan UserStorage
   const getSuratProgress = (suratNomor, totalAyat) => {
     let hafalCount = 0;
     for (let i = 1; i <= totalAyat; i++) {
-      const key = `hafalan_${suratNomor}_${i}`;
-      if (localStorage.getItem(key) === 'true') {
+      if (UserStorage.getHafalan(session, suratNomor, i)) { // ✅ GUNAKAN USERSTORAGE
         hafalCount++;
       }
     }
     return Math.round((hafalCount / totalAyat) * 100);
   };
 
-  // ✅ Fungsi hitung progress per premium
+  // ✅ PERBAIKAN: Fungsi hitung progress premium dengan UserStorage
   const getPremiumProgress = (suratListInPremium) => {
     let totalAyat = 0;
     let totalHafal = 0;
@@ -99,8 +109,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     suratListInPremium.forEach(surat => {
       totalAyat += surat.jumlah_ayat;
       for (let i = 1; i <= surat.jumlah_ayat; i++) {
-        const key = `hafalan_${surat.nomor}_${i}`;
-        if (localStorage.getItem(key) === 'true') {
+        if (UserStorage.getHafalan(session, surat.nomor, i)) { // ✅ GUNAKAN USERSTORAGE
           totalHafal++;
         }
       }
@@ -111,81 +120,14 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
 
   // ✅ FUNGSI BARU: Dapatkan warna berdasarkan persentase
   const getProgressColor = (progress) => {
-    if (progress === 100) return "#28a745"; // Hijau - 100%
-    if (progress >= 76) return "#007bff";   // Biru - 76-99%
-    if (progress >= 56) return "#ffc107";   // Kuning - 56-75%
-    if (progress >= 26) return "#fd7e14";   // Orange - 26-55%
-    return "#dc3545";                       // Merah - 0-25%
+    if (progress === 100) return "#28a745";
+    if (progress >= 76) return "#007bff";
+    if (progress >= 56) return "#ffc107";
+    if (progress >= 26) return "#fd7e14";
+    return "#dc3545";
   };
 
-  // ✅ Ambil status Premium dari Supabase
-  const fetchUserStatus = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("status")
-        .eq("email", user.email)
-        .single();
-
-      if (error) {
-        console.error("Gagal ambil status:", error.message);
-      } else if (data && data.status) {
-        let statusArray = [];
-        
-        if (Array.isArray(data.status)) {
-          statusArray = data.status;
-        } else if (typeof data.status === "object") {
-          statusArray = Object.values(data.status);
-        } else if (typeof data.status === "string") {
-          try {
-            statusArray = JSON.parse(data.status);
-          } catch (err) {
-            console.error("Gagal parse JSON:", err);
-          }
-        }
-        
-        if (statusArray.length !== 10) {
-          statusArray = [false, false, false, false, false, false, false, false, false, true];
-        }
-        
-        setUserStatus(statusArray);
-      }
-    } catch (err) {
-      console.error("Error fetchUserStatus:", err.message);
-    }
-  };
-
-  // 🔁 Pertama kali ambil data status
-  useEffect(() => {
-    fetchUserStatus();
-  }, []);
-
-  // ⚡ Realtime listener perubahan tabel profiles
-  useEffect(() => {
-    const channel = supabase
-      .channel("profiles-channel")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "profiles",
-        },
-        (payload) => {
-          fetchUserStatus();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // ✅ Ambil surat hanya dari Premium yang aktif (true)
+  // ✅ AMBIL SURAT HANYA DARI PREMIUM YANG AKTIF (GUNAKAN USERSTATUS DARI PROP)
   useEffect(() => {
     const all = [];
 
@@ -205,6 +147,7 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     Object.keys(suratConfig).forEach((key) => {
       const premiumIndex = premiumMapping[key];
       
+      // ✅ GUNAKAN USERSTATUS DARI PROP (TIDAK PERLU FETCH LAGI)
       if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
         const premium = suratConfig[key];
         
@@ -262,7 +205,6 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
     const message = `Halo, saya ingin membuka ${premiumNames} untuk aplikasi Tahfidz Qur'an. Email: ${userEmail}`;
     const encodedMessage = encodeURIComponent(message);
     
-    // Ganti nomor WhatsApp dengan nomor Anda
     const whatsappUrl = `https://wa.me/6285199466850?text=${encodedMessage}`;
     
     window.open(whatsappUrl, '_blank');
@@ -287,6 +229,25 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
       return `Surat ${firstSurat.nomor}`;
     } else {
       return `Surat ${firstSurat.nomor}-${lastSurat.nomor}`;
+    }
+  };
+
+  // ✅ FUNGSI BARU: Handle logout dengan redirect ke beranda
+  const handleLogout = async () => {
+    // Stop audio sebelum logout
+    window.dispatchEvent(new CustomEvent('stopAllAudio'));
+    
+    // Tutup sidebar
+    toggleSidebar();
+    
+    // Redirect ke beranda
+    navigate("/app2");
+    
+    // Logout dari Supabase
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Logout error:", err.message);
     }
   };
 
@@ -343,7 +304,6 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
       width: "100%",
       textAlign: "left"
     },
-    // ✅ STYLE BARU UNTUK TOMBOL PINDAH FITUR
     pindahFiturButton: {
       padding: "8px 6px",
       borderRadius: "6px",
@@ -376,18 +336,11 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
         paddingBottom: '100px',
         transform: isOpen ? "translateX(0)" : "translateX(-100%)",
       }}
-      // ✅ HANYA GUNAKAN WHEEL HANDLER SEDERHANA
       onWheel={(e) => {
-        // Biarkan scroll internal sidebar bekerja normal
         e.stopPropagation();
       }}
     >
       <ul className="nav flex-column p-3">
-        {/* ✅ Beranda */}
-
-
-
-
         {/* ✅ TOMBOL BARU: PINDAH FITUR */}
         <li className="nav-item">
           <button
@@ -405,7 +358,8 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
             {isFitur1 ? "🎧 PINDAH KE ISTIMA'" : "📖 PINDAH KE TAHFIDZ"}
           </button>
         </li>
-                <li className="nav-item">
+        
+        <li className="nav-item">
           <Link
             to="/app2"
             className="nav-link"
@@ -415,7 +369,8 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
             BERANDA
           </Link>
         </li>
-                {/* ✅ Panduan - TOGGLE berdasarkan halaman aktif */}
+
+        {/* ✅ Panduan - TOGGLE berdasarkan halaman aktif */}
         {isFitur1 && (
           <li className="nav-item">
             <Link
@@ -442,15 +397,12 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
           </li>
         )}
 
-        {/* ✅ Tombol Buka Surat - Hanya tampil jika ada premium yang belum dibeli */}
+        {/* ✅ PERBAIKAN: Tombol Buka Surat - SELALU TAMPIL (baik login atau belum) */}
         {!semuaPremiumDibeli() && (
           <li className="nav-item">
             <button
               style={styles.bukaSuratButton}
-              onClick={() => {
-                setShowPremiumModal(true);
-                toggleSidebar();
-              }}
+              onClick={handleBukaSurat}
               className="nav-link"
             >
               BUKA SURAT TERKUNCI
@@ -515,78 +467,118 @@ const Sidebar1 = forwardRef(({ isOpen, toggleSidebar, basePath = "/app2/app/fitu
           );
         })}
 
-        {/* ✅ Logout */}
-        <li className="nav-item">
-          <Link className="nav-link text-white" style={styles.navLink}>
-            <Logout />
-          </Link>
-        </li>
+        {/* ✅ Logout - Hanya tampil jika login */}
+        {session && (
+          <li className="nav-item">
+            <div 
+              style={styles.navLink} 
+              onClick={handleLogout}
+              className="nav-link text-white"
+            >
+              KELUAR
+            </div>
+          </li>
+        )}
       </ul>
 
-      {/* ✅ Modal Pembelian Premium */}
-      <Modal show={showPremiumModal} onHide={() => setShowPremiumModal(false)} centered>
+      {/* ✅ Modal Pembelian Premium - Hanya untuk user yang login */}
+      {session && (
+        <Modal show={showPremiumModal} onHide={() => setShowPremiumModal(false)} centered>
+          <Modal.Header closeButton>
+            <Modal.Title>Buka Surat Premium</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p>Pilih premium yang ingin dibuka (Rp 10.000 per premium):</p>
+            
+            <div className="row">
+              {userStatus.slice(0, 9).map((status, index) => (
+                !status && (
+                  <div key={index} className="col-6 mb-3">
+                    <div 
+                      className="p-2 border rounded h-100"
+                      style={{ 
+                        cursor: 'pointer',
+                        backgroundColor: selectedPremiums.includes(index) ? '#e7f3ff' : 'white'
+                      }}
+                      onClick={() => togglePremiumSelection(index)}
+                    >
+                      <Form.Check
+                        type="checkbox"
+                        id={`premium-${index + 1}`}
+                        label={
+                          <div>
+                            <div className="fw-bold">Premium {index + 1}</div>
+                            <div className="small text-muted mt-1">
+                              {getSuratInfo(index)}
+                            </div>
+                          </div>
+                        }
+                        checked={selectedPremiums.includes(index)}
+                        onChange={() => togglePremiumSelection(index)}
+                        className="mb-0"
+                      />
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <div className="w-100 d-flex justify-content-between align-items-center">
+              <Button variant="secondary" onClick={() => {
+                setShowPremiumModal(false);
+                setSelectedPremiums([]);
+              }}>
+                Batal
+              </Button>
+              <div className="d-flex align-items-center">
+                {selectedPremiums.length > 0 && (
+                  <span className="me-3 text-muted">
+                    Total: <strong>Rp {selectedPremiums.length * 10000}</strong>
+                  </span>
+                )}
+                <Button 
+                  variant="primary" 
+                  onClick={bukaWhatsAppPembelian}
+                  disabled={selectedPremiums.length === 0}
+                >
+                  Pesan ({selectedPremiums.length})
+                </Button>
+              </div>
+            </div>
+          </Modal.Footer>
+        </Modal>
+      )}
+
+      {/* ✅ MODAL BARU: Konfirmasi Login untuk Guest User */}
+      <Modal show={showLoginModal} onHide={() => setShowLoginModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Buka Surat Premium</Modal.Title>
+          <Modal.Title>🔒 Login Diperlukan</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Pilih premium yang ingin dibuka (Rp 10.000 per premium):</p>
-          
-          <div className="row">
-            {userStatus.slice(0, 9).map((status, index) => (
-              !status && (
-                <div key={index} className="col-6 mb-3">
-                  <div 
-                    className="p-2 border rounded h-100"
-                    style={{ 
-                      cursor: 'pointer',
-                      backgroundColor: selectedPremiums.includes(index) ? '#e7f3ff' : 'white'
-                    }}
-                    onClick={() => togglePremiumSelection(index)}
-                  >
-                    <Form.Check
-                      type="checkbox"
-                      id={`premium-${index + 1}`}
-                      label={
-                        <div>
-                          <div className="fw-bold">Premium {index + 1}</div>
-                          <div className="small text-muted mt-1">
-                            {getSuratInfo(index)}
-                          </div>
-                        </div>
-                      }
-                      checked={selectedPremiums.includes(index)}
-                      onChange={() => togglePremiumSelection(index)}
-                      className="mb-0"
-                    />
-                  </div>
-                </div>
-              )
-            ))}
+          <div className="text-center">
+            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔐</div>
+            <h5>Anda perlu login terlebih dahulu</h5>
+            <p className="text-muted">
+              Untuk membuka surat premium tambahan, Anda harus memiliki akun dan login.
+              Dengan login, Anda bisa memesan premium dan mengakses semua fitur aplikasi.
+            </p>
           </div>
         </Modal.Body>
-        <Modal.Footer>
-          <div className="w-100 d-flex justify-content-between align-items-center">
-            <Button variant="secondary" onClick={() => {
-              setShowPremiumModal(false);
-              setSelectedPremiums([]);
-            }}>
-              Batal
-            </Button>
-            <div className="d-flex align-items-center">
-              {selectedPremiums.length > 0 && (
-                <span className="me-3 text-muted">
-                  Total: <strong>Rp {selectedPremiums.length * 10000}</strong>
-                </span>
-              )}
-              <Button 
-                variant="primary" 
-                onClick={bukaWhatsAppPembelian}
-                disabled={selectedPremiums.length === 0}
-              >
-                Pesan ({selectedPremiums.length})
-              </Button>
-            </div>
-          </div>
+        <Modal.Footer className="justify-content-center">
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => setShowLoginModal(false)}
+            style={{ marginRight: "1rem" }}
+          >
+            Nanti Saja
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleRedirectToLogin}
+          >
+            🔑 Login 
+          </Button>
         </Modal.Footer>
       </Modal>
     </div>

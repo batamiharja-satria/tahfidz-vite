@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom"; // ✅ IMPORT useLocation
 import { v4 as uuidv4 } from "uuid";
 
 export default function Login() {
@@ -15,7 +15,11 @@ export default function Login() {
   const [cooldown, setCooldown] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ DAPATKAN LOCATION UNTUK REDIRECT
   const [deviceUUID, setDeviceUUID] = useState("");
+
+  // ✅ Dapatkan halaman sebelumnya untuk redirect, default ke beranda
+  const from = location.state?.from?.pathname || "/app2";
 
   // ✅ UUID perangkat
   useEffect(() => {
@@ -104,7 +108,10 @@ export default function Login() {
       localStorage.removeItem("lastResetRequest");
 
       setLoading(false);
-      navigate("/app2");
+      
+      // ✅ REDIRECT KE HALAMAN SEBELUMNYA ATAU BERANDA
+      navigate(from, { replace: true });
+      
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -153,6 +160,23 @@ export default function Login() {
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
+      
+       <Link 
+              to="/" 
+              style={{
+                padding: '0px 0px',
+                
+                background: '',
+                color: 'black',
+                border: 'none',
+                borderRadius: '0px',
+                
+                textDecoration: 'none'
+              }}
+            >
+              ← 
+            </Link>
+      
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
           src="/logo.png"

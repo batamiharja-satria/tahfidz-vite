@@ -4,43 +4,46 @@ import Sidebar1 from "../../components/sidebar/Sidebar1";
 import Header1 from "../../components/header/Header1";
 import Panduan1 from "./Panduan1";
 import TampilanSurat from "../../data/TampilanSurat";
-import { HistoryManager } from "../../utils/history"; // ✅ IMPORT HISTORY MANAGER
+import { UserStorage } from "../../utils/userStorage"; // ✅ IMPORT BARU
 
-function TampilanSuratWrapper() {
+function TampilanSuratWrapper({ session, userStatus }) {
   const { nomor } = useParams();
-  return <TampilanSurat nomor={nomor} />;
+  return <TampilanSurat nomor={nomor} session={session} userStatus={userStatus} />;
 }
 
-function Index1() {
+function Index1({ session, userStatus }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false); // ✅ STATE BARU UNTUK INIT
   const sidebarRef = useRef(null);
   const headerRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const [isInitialized, setIsInitialized] = useState(false);
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
-  // ✅ SIMPAN HISTORY SETIAP KALI ROUTE BERUBAH
+  // ✅ PERBAIKAN: SIMPAN HISTORY SETIAP KALI ROUTE BERUBAH
   useEffect(() => {
-    if (location.pathname) {
-      HistoryManager.setLastPage('fitur1', location.pathname);
+    if (location.pathname && 
+        location.pathname !== '/app2/app/fitur1' && 
+        location.pathname !== '/app2/app/fitur1/') {
+      UserStorage.setHistory(session, 'fitur1', location.pathname);
     }
-  }, [location.pathname]);
+  }, [location.pathname, session]);
 
-  // ✅ CEK HISTORY SAAT PERTAMA KALI LOAD
+  // ✅ PERBAIKAN: CEK HISTORY SAAT PERTAMA KALI LOAD
   useEffect(() => {
     if (!isInitialized) {
-      const lastPage = HistoryManager.getLastPage('fitur1');
+      const lastPage = UserStorage.getHistory(session, 'fitur1');
       
-      // Jika ada history dan bukan halaman panduan, redirect ke halaman terakhir
-      if (lastPage && lastPage !== '/app2/app/fitur1' && lastPage !== '/app2/app/fitur1/panduan1') {
-        navigate(lastPage);
+      if (lastPage && lastPage !== '/app2/app/fitur1' && lastPage !== '/app2/app/fitur1/') {
+        navigate(lastPage, { replace: true });
+      } else {
+        navigate('/app2/app/fitur1/panduan1', { replace: true });
       }
       
       setIsInitialized(true);
     }
-  }, [isInitialized, navigate]);
+  }, [isInitialized, navigate, session]);
 
   // ✅ Fungsi untuk menutup sidebar ketika klik di luar
   const closeSidebar = () => {
@@ -75,14 +78,22 @@ function Index1() {
       </div>
       
       <div ref={sidebarRef}>
-        <Sidebar1 isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <Sidebar1 
+          isOpen={sidebarOpen} 
+          toggleSidebar={toggleSidebar} 
+          session={session} 
+          userStatus={userStatus}
+        />
       </div>
       
       <div className="content" style={{ paddingTop: "56px" }}>
         <Routes>
           <Route index element={<Panduan1 />} />
           <Route path="panduan1" element={<Panduan1 />} />
-          <Route path=":nomor" element={<TampilanSuratWrapper />} />
+          <Route 
+            path=":nomor" 
+            element={<TampilanSuratWrapper session={session} userStatus={userStatus} />} 
+          />
         </Routes>
       </div>
     </div>

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { Container, Button, Modal, Form, Row, Col } from "react-bootstrap";
 import { Eye, EyeSlash } from "react-bootstrap-icons";
 import suratConfig from "./SuratConfig";
-import { supabase } from "../../../services/supabase";
 import audioCache from "../utils/audioCache";
+import { UserStorage } from "../utils/userStorage"; // ✅ IMPORT BARU
 
 // Helper: ubah angka ke Arab
 const toArabicNumber = (number) => {
@@ -15,9 +15,8 @@ const toArabicNumber = (number) => {
     .join("");
 };
 
-const TampilanSuratIstima = ({ nomor }) => {
+const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
   const [data, setData] = useState([]);
-  const [userStatus, setUserStatus] = useState([]);
   const [isSuratAktif, setIsSuratAktif] = useState(false);
   const [loading, setLoading] = useState(true);
   
@@ -32,7 +31,7 @@ const TampilanSuratIstima = ({ nomor }) => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   
   // State untuk toggle semua terjemahan sekaligus
-  const [showArabic, setShowArabic] = useState(true); // true = tampil Arab, false = tampil Terjemahan
+  const [showArabic, setShowArabic] = useState(true);
   
   // Refs untuk manage audio
   const audioRef = useRef(null);
@@ -77,49 +76,33 @@ const TampilanSuratIstima = ({ nomor }) => {
     };
   }, []);
 
-  const fetchUserStatus = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("status")
-        .eq("email", user.email)
-        .single();
-
-      if (error) {
-        console.error("Gagal ambil status:", error.message);
-      } else if (data && data.status) {
-        let statusArray = [];
-        
-        if (Array.isArray(data.status)) {
-          statusArray = data.status;
-        } else if (typeof data.status === "object") {
-          statusArray = Object.values(data.status);
-        } else if (typeof data.status === "string") {
-          try {
-            statusArray = JSON.parse(data.status);
-          } catch (err) {
-            console.error("Gagal parse JSON:", err);
-          }
-        }
-        
-        if (statusArray.length !== 10) {
-          statusArray = [false, false, false, false, false, false, false, false, false, true];
-        }
-        
-        setUserStatus(statusArray);
-      }
-    } catch (err) {
-      console.error("Error fetchUserStatus:", err.message);
-    }
-  };
-
+  // ✅ PERBAIKAN: Scroll position dengan UserStorage - FITUR ISTIMA'
   useEffect(() => {
-    fetchUserStatus();
-  }, []);
+    const container = ayatContainerRef.current;
+    if (!container) return;
 
+    const handleScroll = () => {
+      UserStorage.setScrollPosition(session, 'fitur2', nomor, container.scrollTop);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [nomor, session]);
+
+  // ✅ PERBAIKAN: Restore scroll position dengan UserStorage - FITUR ISTIMA'
+  useEffect(() => {
+    const container = ayatContainerRef.current;
+    if (!container) return;
+
+    const savedScroll = UserStorage.getScrollPosition(session, 'fitur2', nomor);
+    if (savedScroll) {
+      setTimeout(() => {
+        container.scrollTop = savedScroll;
+      }, 100);
+    }
+  }, [nomor, session]);
+
+  // ✅ CEK APAKAH SURAT INI TERMASUK PREMIUM YANG AKTIF (GUNAKAN USERSTATUS DARI PROP)
   useEffect(() => {
     if (!nomor || userStatus.length === 0) return;
 
@@ -141,6 +124,7 @@ const TampilanSuratIstima = ({ nomor }) => {
     Object.keys(suratConfig).forEach((key) => {
       const premiumIndex = premiumMapping[key];
       
+      // ✅ GUNAKAN USERSTATUS DARI PROP
       if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
         const premium = suratConfig[key];
         
@@ -438,34 +422,31 @@ const TampilanSuratIstima = ({ nomor }) => {
 
   return (
     <div className="d-flex flex-column" style={{ height: '100vh' }}>
-  {/* Header - FIXED POSITION */}
-  <div className="bg-white border-bottom" 
-  style={{
-    position: 'fixed',
-    top: '56px',
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    background: 'white',
-    // ✅ TAMBAH STYLE INI UNTUK MEMASTIKAN TIDAK BISA SCROLL
-    touchAction: 'none',
-    userSelect: 'none',
-    WebkitUserSelect: 'none'
-  }}
-  // ✅ EVENT HANDLER UNTUK BLOCK SEMUA SCROLL
-  onWheel={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }}
-  onTouchMove={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }}
-  onScroll={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  
-  }}>
+      {/* Header - FIXED POSITION */}
+      <div className="bg-white border-bottom" 
+      style={{
+        position: 'fixed',
+        top: '56px',
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        background: 'white',
+        touchAction: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none'
+      }}
+      onWheel={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onTouchMove={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onScroll={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}>
         <Container className="pt-2">
           <div className="text-center">
             <h4>🎧 Surat {nomor}</h4>
@@ -519,19 +500,19 @@ const TampilanSuratIstima = ({ nomor }) => {
       </div>
 
       {/* Container Ayat */}
-<div 
-  ref={ayatContainerRef} 
-  className="flex-grow-1 overflow-auto"
-  style={{ 
-    marginTop: '150px', // Sesuaikan dengan tinggi header
-    height: 'calc(100vh - 140px - 56px)', // Kurangi tinggi header fixed
-    paddingBottom: '60px'
-  }}
->
+      <div 
+        ref={ayatContainerRef} 
+        className="flex-grow-1 overflow-auto"
+        style={{ 
+          marginTop: '150px',
+          height: 'calc(100vh - 140px - 56px)',
+          paddingBottom: '60px'
+        }}
+      >
         <Container className="py-2">
           {!isSuratAktif ? (
             <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
-              LOADING...
+              {loading ? "Memuat..." : "Surat tidak tersedia. Silakan login atau beli premium untuk mengakses."}
             </p>
           ) : loading ? (
             <p style={{ padding: "1rem", textAlign: "center" }}>
@@ -577,7 +558,6 @@ const TampilanSuratIstima = ({ nomor }) => {
                   
                   {/* Conditional rendering berdasarkan showArabic */}
                   {showArabic ? (
-                    // Tampilkan teks Arab
                     <div 
                       className="text-end mb-1" 
                       style={{ 
@@ -590,7 +570,6 @@ const TampilanSuratIstima = ({ nomor }) => {
                       {ayat.ar}
                     </div>
                   ) : (
-                    // PERBAIKAN: Tampilkan terjemahan TANPA keterangan "Ayat X:"
                     <div 
                       className="p-2" 
                       style={{ 
@@ -696,7 +675,6 @@ const TampilanSuratIstima = ({ nomor }) => {
           </Button>
         </Modal.Footer>
       </Modal>
-
     </div>
   );
 };

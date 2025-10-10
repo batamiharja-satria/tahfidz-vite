@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 
 export default function Register() {
@@ -11,9 +11,11 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const [deviceUUID, setDeviceUUID] = useState("");
 
-  // ✅ Generate device UUID saat component mount
+  const from = location.state?.from?.pathname || "/app2";
+
   useEffect(() => {
     let uuid = localStorage.getItem("deviceUUID");
     if (!uuid) {
@@ -33,7 +35,7 @@ export default function Register() {
       // 🔹 Step 1: Cek apakah email sudah ada di profiles
       const { data: existingUser, error: checkError } = await supabase
         .from("profiles")
-        .select("email, device_uuid")
+        .select("email, device_uuid, status")
         .eq("email", email)
         .maybeSingle();
 
@@ -42,7 +44,6 @@ export default function Register() {
       }
 
       if (existingUser) {
-        // 🔹 Cek apakah email sudah terdaftar di device lain
         if (existingUser.device_uuid && existingUser.device_uuid !== deviceUUID) {
           throw new Error("Email sudah terdaftar di device lain. Gunakan email baru untuk device ini.");
         }
@@ -56,7 +57,7 @@ export default function Register() {
         options: {
           emailRedirectTo: "https://tahfidzku.vercel.app/verified.html",
           data: {
-            device_uuid: deviceUUID // Simpan device UUID di metadata user
+            device_uuid: deviceUUID
           }
         },
       });
@@ -64,16 +65,29 @@ export default function Register() {
       if (signUpError) throw signUpError;
 
       if (authData?.user) {
-        // 🔹 Step 3: Simpan device UUID ke profiles
+        // ✅ PERBAIKAN FINAL: Insert baru dengan status default yang eksplisit
         const { error: profileError } = await supabase
           .from("profiles")
-          .update({ 
-            device_uuid: deviceUUID 
-          })
-          .eq("email", email);
+          .insert({ 
+            email: email,
+            device_uuid: deviceUUID,
+            status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
+          });
 
         if (profileError) {
-          console.error("Error updating profile:", profileError);
+          console.error("Error creating profile:", profileError);
+          // Jika error karena row sudah ada, try update
+          const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ 
+              device_uuid: deviceUUID,
+              status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
+            })
+            .eq("email", email);
+            
+          if (updateError) {
+            console.error("Error updating profile:", updateError);
+          }
         }
 
         setInfo("Silakan cek email Anda dan lakukan verifikasi sebelum login.");
@@ -85,8 +99,9 @@ export default function Register() {
       setEmail("");
       setPassword("");
 
-      // 🔹 Auto redirect ke login setelah 60 detik
-      setTimeout(() => navigate("/"), 60000);
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 3000);
 
     } catch (err) {
       setError(err.message);
@@ -97,6 +112,21 @@ export default function Register() {
 
   return (
     <div className="container" style={{ padding: "2rem" }}>
+      
+      <Link 
+        to="/" 
+        style={{
+          padding: '0px 0px',
+          background: '',
+          color: 'black',
+          border: 'none',
+          borderRadius: '0px',
+          textDecoration: 'none'
+        }}
+      >
+        ← 
+      </Link>
+      
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
           src="/logo.png"
@@ -159,7 +189,7 @@ export default function Register() {
       </form>
 
       <p>
-        Sudah punya akun? <Link to="/">Masuk</Link>
+        Sudah punya akun? <Link to="/login">Masuk</Link>
       </p>
 
       {error && <p style={{ color: "red" }}>{error}</p>}

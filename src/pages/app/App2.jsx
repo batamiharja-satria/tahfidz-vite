@@ -1,17 +1,49 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../services/supabase";
 import { Container, Button } from "react-bootstrap";
-import { useNavigate, Routes, Route } from "react-router-dom";
+import { useNavigate, Routes, Route, Link } from "react-router-dom";
 import Index1 from "./pages/fitur1/Index1";
 import Index2 from "./pages/fitur2/Index2";
-import { HistoryManager } from "./utils/history"; // ✅ IMPORT HISTORY MANAGER
+import { UserStorage } from "./utils/userStorage"; // ✅ IMPORT BARU
 
-
-
-function App2() {
+function App2({ session }) {
   const [loading, setLoading] = useState(true);
+  const [userStatus, setUserStatus] = useState([]);
   const navigate = useNavigate();
 
+  // ✅ AMBIL STATUS USER JIKA LOGIN
+  useEffect(() => {
+    const fetchUserStatus = async () => {
+      if (session) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("status")
+            .eq("email", user.email)
+            .single();
+
+          if (error) {
+            console.error("Gagal ambil status:", error.message);
+          } else if (data && data.status) {
+            setUserStatus(data.status);
+          }
+        } catch (err) {
+          console.error("Error fetchUserStatus:", err.message);
+        }
+      } else {
+        // ✅ JIKA GUEST, SET STATUS DEFAULT
+        setUserStatus([false,false,false,false,false,false,false,true,true,true]);
+      }
+      setLoading(false);
+    };
+
+    fetchUserStatus();
+  }, [session]);
+
+  // ✅ CEK SESSION SAAT KOMPONEN MOUNT
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -19,18 +51,11 @@ function App2() {
         
         if (error) {
           console.error("Error checking session:", error);
-          navigate("/");
-          return;
         }
-
-        if (!user) {
-          navigate("/");
-        } else {
-          setLoading(false);
-        }
+        setLoading(false);
       } catch (err) {
         console.error("Session check failed:", err);
-        navigate("/");
+        setLoading(false);
       }
     };
 
@@ -38,11 +63,10 @@ function App2() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_OUT' || !session) {
-          navigate("/");
-        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          setLoading(false);
+        if (event === 'SIGNED_OUT') {
+          setUserStatus([false,false,false,false,false,false,false,true,true,true]);
         }
+        setLoading(false);
       }
     );
 
@@ -63,6 +87,7 @@ function App2() {
 
   return (
     <Routes>
+      {/* ✅ ROUTE UNTUK BERANDA */}
       <Route
         path="/"
         element={
@@ -83,10 +108,24 @@ function App2() {
             <h1 className="fw-bold display-5 mb-2 text-center">Assalamu 'alaikum</h1>
             <p className=" fs-6 text-center">
               Selamat Datang di Aplikasi Qur'an</p> 
+              
+              {!session ? (
+                <div className="text-center">
+                  <Link
+                    to="/login"
+                    className=" text-success "
+                    style={{ textDecoration: "none" }}
+                  >
+                    Login
+                  </Link>
+                </div>
+              ) : (
+               <div className="text-center">
+                <span className="text-success ">{session.user.email}</span>
+                </div>
+              )}
 
-
-
-            {/* Kartu Fitur - ✅ MODIFIKASI ONCLICK */}
+            {/* Kartu Fitur */}
             <div className="d-flex justify-content-center gap-3 flex-wrap mt-4">
               <div
                 className="card shadow p-4 text-center clickable-card"
@@ -100,14 +139,13 @@ function App2() {
                   transition: "all 0.3s ease",
                 }}
                 onClick={() => {
-                  // ✅ CEK HISTORY UNTUK FITUR 1
-                  const lastPage = HistoryManager.getLastPage('fitur1');
-                  console.log('Last page fitur1:', lastPage);
+                  // ✅ PERBAIKAN: Gunakan UserStorage untuk history yang user-specific
+                  const lastPage = UserStorage.getHistory(session, 'fitur1');
                   
                   if (lastPage && lastPage !== '/app2/app/fitur1' && lastPage !== '/app2/app/fitur1/panduan1') {
-                    navigate(lastPage); // ✅ KE HALAMAN TERAKHIR
+                    navigate(lastPage);
                   } else {
-                    navigate("app/fitur1"); // ✅ KE PANDUAN JIKA BELUM ADA HISTORY
+                    navigate("app/fitur1");
                   }
                 }}
                 onMouseOver={(e) => {
@@ -135,14 +173,13 @@ function App2() {
                   transition: "all 0.3s ease",
                 }}
                 onClick={() => {
-                  // ✅ CEK HISTORY UNTUK FITUR 2
-                  const lastPage = HistoryManager.getLastPage('fitur2');
-                  console.log('Last page fitur2:', lastPage);
+                  // ✅ PERBAIKAN: Gunakan UserStorage untuk history yang user-specific
+                  const lastPage = UserStorage.getHistory(session, 'fitur2');
                   
                   if (lastPage && lastPage !== '/app2/app/fitur2' && lastPage !== '/app2/app/fitur2/panduan2') {
-                    navigate(lastPage); // ✅ KE HALAMAN TERAKHIR
+                    navigate(lastPage);
                   } else {
-                    navigate("app/fitur2"); // ✅ KE PANDUAN JIKA BELUM ADA HISTORY
+                    navigate("app/fitur2");
                   }
                 }}
                 onMouseOver={(e) => {
@@ -159,7 +196,7 @@ function App2() {
               </div>
             </div>
 
-            {/* Footer Quote - TEXT CENTER */}
+            {/* Footer Quote */}
             <div
               className="card shadow-sm p-4 mt-5 text-muted small text-center"
               style={{
@@ -176,7 +213,7 @@ function App2() {
               <p className="mb-0 text-center">(HR. Bukhari)</p>
             </div>
 
-            {/* Footer Link - TEXT CENTER */}
+            {/* Footer Link */}
             <footer className="mt-4 text-secondary small text-center">
               <a
                 href="#about"
@@ -196,7 +233,16 @@ function App2() {
               >
                 Kontak
               </a>
-              {/* TAMBAHAN LINK DOWNLOAD */}
+               {/* ✅ TAMBAHKAN LINK DUKUNGAN SAWERIA DI SINI */}
+  <a
+    href="https://saweria.co/batamiharja"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="me-3 text-success"
+    style={{ textDecoration: "none" }}
+  >
+    Dukungan
+  </a>
               <a
                 href="#download"
                 className="me-3 text-success"
@@ -265,8 +311,6 @@ function App2() {
                       >
                         <i className="fab fa-whatsapp"></i> WhatsApp
                       </a>
-
-
                     </div>
                   </div>
                 </div>
@@ -284,7 +328,7 @@ function App2() {
               <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                   <div className="modal-header">
-                    <h5 className="modal-title" id="supportModalLabel">Kontak & Dukungan</h5>
+                    <h5 className="modal-title" id="supportModalLabel">Kontak</h5>
                     <button
                       type="button"
                       className="btn-close"
@@ -292,93 +336,92 @@ function App2() {
                       aria-label="Close"
                     ></button>
                   </div>
-<div className="modal-body text-start" style={{ 
-  position: 'relative',
-  maxHeight: '60vh',
-  overflowY: 'auto',
-  paddingBottom: '40px' // Beri ruang untuk indikator
-}}>
-  <p>
-    Untuk pertanyaan, saran, bantuan teknis, atau kerja sama, silakan hubungi kami:
-  </p>
-  <ul>
-    <li>
-      📧 Email: <a href="mailto:batamsatria2@gmail.com">batamsatria2@gmail.com</a>
-    </li>
-    <li>
-      📱 WhatsApp: <a href="https://wa.me/6285199466850">+62 851-9946-6850</a>
-    </li>
-  </ul>
-  
-  <div className="mt-4 p-3 bg-light rounded">
-    <h6 className="mb-3">🤝 Peluang Kerja Sama & Sponsor</h6>
-    
-    <div className="mb-3">
-      <strong>🎯 Untuk Sponsor & Advertiser:</strong>
-      <ul className="small mt-2">
-        <li>Tempatkan brand Anda di aplikasi Tahfidz Qur'an ini</li>
-        <li>Sponsorship dalam pengembangan fitur-fitur lainnya</li>
-        <li>Iklan native yang sesuai dengan nilai-nilai islami</li>
-      </ul>
-    </div>
+                  <div className="modal-body text-start" style={{ 
+                    position: 'relative',
+                    maxHeight: '60vh',
+                    overflowY: 'auto',
+                    paddingBottom: '40px'
+                  }}>
+                    <p>
+                      Untuk pertanyaan, saran, bantuan teknis, atau kerja sama, silakan hubungi kami:
+                    </p>
+                    <ul>
+                      <li>
+                        📧 Email: <a href="mailto:batamsatria2@gmail.com">batamsatria2@gmail.com</a>
+                      </li>
+                      <li>
+                        📱 WhatsApp: <a href="https://wa.me/6285199466850">+62 851-9946-6850</a>
+                      </li>
+                    </ul>
+                    
+                    <div className="mt-4 p-3 bg-light rounded">
+                      <h6 className="mb-3">🤝 Peluang Kerja Sama & Sponsor</h6>
+                      
+                      <div className="mb-3">
+                        <strong>🎯 Untuk Sponsor & Advertiser:</strong>
+                        <ul className="small mt-2">
+                          <li>Tempatkan brand Anda di aplikasi Tahfidz Qur'an ini</li>
+                          <li>Sponsorship dalam pengembangan fitur-fitur lainnya</li>
+                          <li>Iklan native yang sesuai dengan nilai-nilai islami</li>
+                        </ul>
+                      </div>
 
-    <div className="mb-3">
-      <strong>💼 Jasa Pengembangan Custom:</strong>
-      <ul className="small mt-2">
-        <li>Pembuatan aplikasi web & mobile custom sesuai kebutuhan bisnis Anda</li>
-        <li>Development toko online (e-commerce)</li>
-        <li>Aplikasi perusahaan, UKM, atau startup</li>
-        <li>Integrasi payment gateway, SMS gateway, dan API lainnya</li>
-      </ul>
-    </div>
+                      <div className="mb-3">
+                        <strong>💼 Jasa Pengembangan Custom:</strong>
+                        <ul className="small mt-2">
+                          <li>Pembuatan aplikasi web & mobile custom sesuai kebutuhan bisnis Anda</li>
+                          <li>Development toko online (e-commerce)</li>
+                          <li>Aplikasi perusahaan, UKM, atau startup</li>
+                          <li>Integrasi payment gateway, SMS gateway, dan API lainnya</li>
+                        </ul>
+                      </div>
 
-<div className="mb-3">
-  <strong>🚀 Layanan Lainnya:</strong>
-  <ul className="small mt-2">
-    <li>
-      <strong>👨‍💻 Private Coding Mentor</strong> - Fullstack Web & App Development 
-      untuk siswa usia 10+ tahun, bimbingan hingga mahir
-    </li>
-    <li>Konsultasi teknologi dan digital transformation</li>
-    <li>Maintenance & update aplikasi berkelanjutan</li>
-    <li>Optimasi performa dan keamanan aplikasi</li>
-  </ul>
-</div>
+                      <div className="mb-3">
+                        <strong>🚀 Layanan Lainnya:</strong>
+                        <ul className="small mt-2">
+                          <li>
+                            <strong>👨‍💻 Private Coding Mentor</strong> - Fullstack Web & App Development 
+                            untuk siswa usia 10+ tahun, bimbingan hingga mahir
+                          </li>
+                          <li>Konsultasi teknologi dan digital transformation</li>
+                          <li>Maintenance & update aplikasi berkelanjutan</li>
+                          <li>Optimasi performa dan keamanan aplikasi</li>
+                        </ul>
+                      </div>
 
-    <div className="alert alert-success small mt-3 mb-0">
-      <strong>💡 Tertarik bekerja sama?</strong><br/>
-      Mari diskusikan kebutuhan Anda! Kami siap membantu mewujudkan ide digital Anda dengan solusi teknologi yang tepat dan berkualitas.
-    </div>
-  </div>
-</div>
-{/* INDIKATOR SCROLL UNTUK MODAL */}
-  <div style={{
-    position: 'absolute',
-    bottom: '10px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: '#212529',
-    color: 'white',
-    padding: '8px 16px',
-    borderRadius: '20px',
-    fontSize: '12px',
-    fontWeight: 'bold',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-    zIndex: 10,
-    animation: 'bounce 2s infinite'
-  }}>
-    Scroll ↓
-  </div>
+                      <div className="alert alert-success small mt-3 mb-0">
+                        <strong>💡 Tertarik bekerja sama?</strong><br/>
+                        Mari diskusikan kebutuhan Anda! Kami siap membantu mewujudkan ide digital Anda dengan solusi teknologi yang tepat dan berkualitas.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '10px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: '#212529',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                    zIndex: 10,
+                    animation: 'bounce 2s infinite'
+                  }}>
+                    Scroll ↓
+                  </div>
 
-  <style>
-    {`
-    @keyframes bounce {
-      0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
-      40% { transform: translateX(-50%) translateY(-3px); }
-      60% { transform: translateX(-50%) translateY(-2px); }
-    }
-    `}
-  </style>
+                  <style>
+                    {`
+                    @keyframes bounce {
+                      0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+                      40% { transform: translateX(-50%) translateY(-3px); }
+                      60% { transform: translateX(-50%) translateY(-2px); }
+                    }
+                    `}
+                  </style>
                 </div>
               </div>
             </div>
@@ -438,25 +481,22 @@ function App2() {
             </div>
             
             {/* Footer Hak Cipta */}
-<footer className="mt-4 text-center">
-  <div className="text-muted small" style={{ 
-    borderTop: '1px solid #dee2e6', 
-    paddingTop: '1rem',
-    marginTop: '2rem'
-  }}>
-    <p className="mb-1">
-      &copy; {new Date().getFullYear()} Batam App. All rights reserved.
-    </p>
-
-  </div>
-</footer>
-
+            <footer className="mt-4 text-center">
+              <p className="small text-muted">&copy; 2024 TahfidzKu. All rights reserved.</p>
+            </footer>
           </Container>
         }
       />
 
-      <Route path="app/fitur1/*" element={<Index1 />} />
-      <Route path="app/fitur2/*" element={<Index2 />} />
+      {/* ✅ PERBAIKAN PENTING: TAMBAHKAN ROUTE UNTUK FITUR1 DAN FITUR2 */}
+      <Route 
+        path="app/fitur1/*" 
+        element={<Index1 session={session} userStatus={userStatus} />} 
+      />
+      <Route 
+        path="app/fitur2/*" 
+        element={<Index2 session={session} userStatus={userStatus} />} 
+      />
     </Routes>
   );
 }

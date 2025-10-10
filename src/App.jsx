@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { supabase } from "./services/supabase";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -11,13 +11,11 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ✅ CEK SESSION SAAT APP DIBUKA
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
-    // ✅ LISTEN UNTUK PERUBAHAN AUTH STATE
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -44,32 +42,13 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* ✅ JIKA SUDAH LOGIN, REDIRECT KE APP2 */}
-        <Route 
-          path="/" 
-          element={session ? <Navigate to="/app2" /> : <Login />} 
-        />
-        <Route 
-          path="/login" 
-          element={session ? <Navigate to="/app2" /> : <Login />} 
-        />
-        <Route 
-          path="/register" 
-          element={session ? <Navigate to="/app2" /> : <Register />} 
-        />
+        {/* ✅ PERBAIKAN: Hapus duplikasi route untuk /app2 */}
+        <Route path="/" element={<App2 session={session} />} />
+        <Route path="/app2/*" element={<App2 session={session} />} />
         
-        {/* ✅ ROUTE ADMIN - TANPA PROTECTION SESSION (punya login sendiri) */}
-        <Route 
-          path="/admin" 
-          element={<AdminPanel />} 
-        />
-
-        {/* ✅ JIKA BELUM LOGIN, REDIRECT KE LOGIN */}
-        <Route 
-          path="/app2/*" 
-          element={session ? <App2 /> : <Navigate to="/login" />} 
-        />
-
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/admin" element={<AdminPanel />} />
       </Routes>
     </Router>
   );

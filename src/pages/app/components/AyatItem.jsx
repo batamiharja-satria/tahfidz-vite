@@ -3,7 +3,8 @@ import { EyeFill } from "react-bootstrap-icons";
 import AyatModal from "./AyatModal";
 import suratConfig from "../data/SuratConfig";
 import { Form } from "react-bootstrap";
-import audioCache from "../utils/audioCache"; // ✅ Import cache global
+import audioCache from "../utils/audioCache";
+import { UserStorage } from "../utils/userStorage"; // ✅ IMPORT BARU
 
 // ubah angka ke Arab
 const toArabicNumber = (number) => {
@@ -29,22 +30,22 @@ const getAllSuratFromConfig = (config) => {
   return all;
 };
 
-const AyatItem = ({ ayat, suratId, wordCount = 2 }) => {
+const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => { // ✅ TAMBAH SESSION PROP
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isHafal, setIsHafal] = useState(false);
 
-  const key = `hafalan_${suratId}_${ayat.nomor}`;
-
+  // ✅ PERBAIKAN: Gunakan user-specific key
   useEffect(() => {
-    const stored = localStorage.getItem(key);
-    setIsHafal(stored === "true");
-  }, [key]);
+    const hafalStatus = UserStorage.getHafalan(session, suratId, ayat.nomor);
+    setIsHafal(hafalStatus);
+  }, [session, suratId, ayat.nomor]);
 
   const toggleHafalan = () => {
     const newStatus = !isHafal;
     setIsHafal(newStatus);
-    localStorage.setItem(key, newStatus);
+    // ✅ PERBAIKAN: Simpan dengan user-specific key
+    UserStorage.setHafalan(session, suratId, ayat.nomor, newStatus);
   };
 
   const playAudio = async () => {
