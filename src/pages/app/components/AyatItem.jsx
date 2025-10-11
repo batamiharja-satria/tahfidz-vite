@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { EyeFill } from "react-bootstrap-icons";
 import AyatModal from "./AyatModal";
 import suratConfig from "../data/SuratConfig";
 import { Form } from "react-bootstrap";
 import audioCache from "../utils/audioCache";
-import { UserStorage } from "../utils/userStorage"; // ✅ IMPORT BARU
+import { UserStorage } from "../utils/userStorage";
+import audioManager from "../utils/audioManager"; // ✅ IMPORT BARU
 
 // ubah angka ke Arab
 const toArabicNumber = (number) => {
@@ -34,6 +35,7 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
   const [showModal, setShowModal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isHafal, setIsHafal] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false); // ✅ STATE UNTUK UI
 
   // ✅ PERBAIKAN: Kembali ke SYNCHRONOUS
   useEffect(() => {
@@ -41,17 +43,40 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
     setIsHafal(hafalStatus);
   }, [session, suratId, ayat.nomor]);
 
+  // ✅ EFFECT UNTUK MENDENGARKAN PERUBAHAN STATE AUDIO GLOBAL
+  useEffect(() => {
+    const checkAudioState = () => {
+      const currentlyPlaying = audioManager.isPlaying(suratId, ayat.nomor);
+      setIsPlaying(currentlyPlaying);
+    };
+
+    // Check state saat komponen mount
+    checkAudioState();
+
+    // Check state secara periodic (opsional, untuk sync)
+    const interval = setInterval(checkAudioState, 500);
+
+    return () => clearInterval(interval);
+  }, [suratId, ayat.nomor]);
+
   const toggleHafalan = () => {
     const newStatus = !isHafal;
     setIsHafal(newStatus);
-    // ✅ PERBAIKAN: Kembali ke SYNCHRONOUS
     UserStorage.setHafalan(session, suratId, ayat.nomor, newStatus);
   };
 
-  const playAudio = async () => {
+  // ✅ FUNGSI PLAY AUDIO SINGLE AYAT YANG DISEMPURNAKAN
+  const playSingleAudio = async (ayatNomor) => {
+    // Jika audio yang sama sedang diputar, stop
+    if (audioManager.isPlaying(suratId, ayatNomor)) {
+      audioManager.stopCurrentAudio();
+      setIsPlaying(false);
+      return;
+    }
+
     setIsLoading(true);
 
-    // cari surat dari config (flatten semua juz)
+    // Cari surat dari config
     const allSurat = getAllSuratFromConfig(suratConfig);
     const suratData = allSurat.find((s) => String(s.nomor) === String(suratId));
 
@@ -62,35 +87,49 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
     }
 
     const suratNumber = suratData.nomor;
-    const ayatNumber = ayat.nomor;
+    const ayatNumber = ayatNomor;
 
     // URL audio The Quran Project
     const audioUrl = `https://the-quran-project.github.io/Quran-Audio/Data/1/${suratNumber}_${ayatNumber}.mp3`;
 
     try {
-      // ✅ CEK CACHE GLOBAL - jika audio sudah pernah di-load
+      let audioToPlay;
+
+      // ✅ CEK CACHE GLOBAL
       if (audioCache.has(audioUrl)) {
-        const cachedAudio = audioCache.get(audioUrl);
-        cachedAudio.currentTime = 0;
-        cachedAudio.play();
-        setIsLoading(false);
-        return;
+        audioToPlay = audioCache.get(audioUrl);
+      } else {
+        // ✅ JIKA BELUM ADA DI CACHE - download dan simpan
+        audioToPlay = new Audio(audioUrl);
+        audioCache.set(audioUrl, audioToPlay);
       }
 
-      // ✅ JIKA BELUM ADA DI CACHE - download dan simpan ke cache
-      const audio = new Audio(audioUrl);
-      audioCache.set(audioUrl, audio);
+      // ✅ GUNAKAN AUDIO MANAGER GLOBAL
+      audioManager.playAudio(
+        audioUrl,
+        suratId,
+        ayatNomor,
+        () => {
+          // onPlaying callback
+          setIsLoading(false);
+          setIsPlaying(true);
+        },
+        () => {
+          // onError callback
+          setIsLoading(false);
+          setIsPlaying(false);
+          alert("Gagal memutar audio.");
+        },
+        () => {
+          // onEnded callback
+          setIsPlaying(false);
+        }
+      );
 
-      audio.onplaying = () => setIsLoading(false);
-      audio.onerror = () => {
-        setIsLoading(false);
-        alert("Gagal memutar audio.");
-      };
-
-      audio.play();
     } catch (error) {
-      alert("Audio gagal dimuat.");
       setIsLoading(false);
+      setIsPlaying(false);
+      alert("Audio gagal dimuat.");
     }
   };
 
@@ -105,7 +144,7 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
     <div className="d-flex justify-content-between align-items-center border p-2 mb-2">
       <div className="d-flex align-items-center">
         <button
-          className="btn btn-outline-secondary btn-sm me-2"
+          className="btn btn-outline-secondary btn-sm me-3"
           onClick={() => setShowModal(true)}
         >
           <EyeFill />
@@ -113,10 +152,11 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
 
         <button
           className="btn btn-outline-secondary btn-sm me-2"
-          onClick={playAudio}
-          disabled={isLoading}
+          onClick={() => playSingleAudio(ayat.nomor)}
+          disabled={isLoading && isPlaying}
+          style={{ padding: "0.2rem 0.4rem", fontSize: "0.8rem" }}
         >
-          {isLoading ? "⏳" : "🔊"}
+          {isPlaying ? "⏹️" : (isLoading ? "⏳" : "🔊")}
         </button>
 
         <Form.Check
@@ -129,7 +169,7 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
       </div>
 
       <div
-        className="text-end flex-grow-1 fs-4 me-3"
+        className="text-end flex-grow-1 fs-4 me-2"
         style={{
           minHeight: "2.2rem",
           display: "flex",
@@ -140,7 +180,7 @@ const AyatItem = ({ ayat, suratId, wordCount = 2, session }) => {
         {displayedText}
       </div>
 
-      <div className="fs-5">{toArabicNumber(ayat.nomor)}</div>
+      <div className="fs-6">{toArabicNumber(ayat.nomor)}</div>
 
       <AyatModal
         show={showModal}

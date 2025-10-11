@@ -126,10 +126,10 @@ const TampilanSurat = ({ nomor, session, userStatus }) => { // ✅ TERIMA SESSIO
   };
 
   return (
-    <div className="d-flex flex-column vh-100">
+    <div className="d-flex flex-column vw-100 vh-100">
       {/* ✅ TAMBAH REF DI CONTAINER AYAT */}
       <div ref={ayatContainerRef} className="flex-grow-1 overflow-auto">
-        <Container className="mt-3 mb-5">
+        <Container className="mt-4 mb-5">
           {!isSuratAktif ? (
             <p style={{ padding: "1rem", textAlign: "center", color: "#6c757d" }}>
               {loading ? "Memuat..." : "Surat tidak tersedia. Silakan login atau beli premium untuk mengakses."}

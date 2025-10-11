@@ -185,7 +185,7 @@ const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
         const ayatTop = ayatElement.offsetTop;
         const ayatHeight = ayatElement.offsetHeight;
         
-        const scrollPosition = ayatTop - (containerHeight / 3);
+        const scrollPosition = ayatTop - (containerHeight / 2);
         
         container.scrollTo({
           top: Math.max(0, scrollPosition),
@@ -421,7 +421,7 @@ const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
   };
 
   return (
-    <div className="d-flex flex-column" style={{ height: '100vh' }}>
+    <div className="d-flex flex-column" style={{ height: '100vh', width: '100vw'}}>
       {/* Header - FIXED POSITION */}
       <div className="bg-white border-bottom" 
       style={{
@@ -447,7 +447,7 @@ const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
         e.preventDefault();
         e.stopPropagation();
       }}>
-        <Container className="pt-2">
+        <Container className="pt-3">
           <div className="text-center">
             <h4>🎧 Surat {nomor}</h4>
             <div className="d-flex justify-content-center gap-2 mb-3">
@@ -502,11 +502,12 @@ const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
       {/* Container Ayat */}
       <div 
         ref={ayatContainerRef} 
-        className="flex-grow-1 overflow-auto"
+        className="flex-grow-1   overflow-auto"
         style={{ 
-          marginTop: '150px',
+          marginTop: '170px',
           height: 'calc(100vh - 140px - 56px)',
-          paddingBottom: '60px'
+          paddingBottom: '60px',
+          paddingTop: '20px'
         }}
       >
         <Container className="py-2">

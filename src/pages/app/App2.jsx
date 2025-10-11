@@ -150,7 +150,7 @@ function App2({ session }) {
             style={{
               width: "100%",
               minWidth: "360px",
-              maxWidth: "768px",
+              height: "100vh",
               margin: "0 auto",
               padding: "40px 20px",
               background: "linear-gradient(135deg, #f9fdf9, #f0fdfa, #f9f9ff)",

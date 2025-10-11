@@ -74,7 +74,7 @@ function Index2({ session, userStatus }) {
   // ✅ TAMPILKAN LOADING JIKA USERSTATUS BELUM SIAP
   if (!userStatus || userStatus.length === 0) {
     return (
-      <div className="d-flex justify-content-center align-items-center vh-100">
+      <div className="d-flex justify-content-center align-items-center vw-100  vh-100">
         <p>Mempersiapkan fitur Istima'...</p>
       </div>
     );
@@ -100,7 +100,7 @@ function Index2({ session, userStatus }) {
         />
       </div>
       
-      <div className="content" style={{ paddingTop: "56px" }}>
+      <div className="content" style={{ paddingTop: "50px" }}>
         <Routes>
           <Route index element={<Panduan2 />} />
           <Route path="panduan2" element={<Panduan2 />} />
