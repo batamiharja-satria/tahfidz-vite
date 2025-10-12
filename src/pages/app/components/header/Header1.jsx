@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import suratConfig from "../../data/SuratConfig";
 // HAPUS import supabase - tidak perlu karena kita pakai userStatus dari props
 
-const Header1 = forwardRef(({ toggleSidebar, session, userStatus }, ref) => {
+const Header1 = forwardRef(({ toggleSidebar, session, userStatus, onSearchClick }, ref) => {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
@@ -116,10 +116,15 @@ const Header1 = forwardRef(({ toggleSidebar, session, userStatus }, ref) => {
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
   };
 
-  // ✅ PERBAIKAN: Aktifkan mode search
+  // ✅ PERBAIKAN: Aktifkan mode search - DITAMBAHKAN onSearchClick
   const activateSearch = () => {
     // Stop semua audio sebelum membuka pencarian
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
+    
+    // ✅ PANGGIL onSearchClick JIKA ADA
+    if (onSearchClick) {
+      onSearchClick();
+    }
     
     setIsSearchActive(true);
     setTimeout(() => {

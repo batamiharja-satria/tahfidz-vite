@@ -21,6 +21,13 @@ function Index1({ session, userStatus }) {
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
+  // ✅ FUNGSI BARU: Handle search click untuk menutup sidebar
+  const handleSearchClick = () => {
+    if (sidebarOpen) {
+      setSidebarOpen(false);
+    }
+  };
+
   // ✅ PERBAIKAN: Pastikan userStatus tersedia sebelum inisialisasi
   useEffect(() => {
     if (userStatus && userStatus.length > 0 && !isInitialized) {
@@ -89,6 +96,7 @@ function Index1({ session, userStatus }) {
           toggleSidebar={toggleSidebar} 
           session={session} 
           userStatus={userStatus} 
+          onSearchClick={handleSearchClick} // ✅ PROP BARU DITAMBAHKAN
         />
       </div>
       
