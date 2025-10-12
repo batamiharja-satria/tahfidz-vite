@@ -160,13 +160,16 @@ export default function Login() {
   }, []);
 
   return (
-    <div className="container" style={{ padding: "2rem" }}>
+    <div className="container" style={{
+    width: "100%",
+      maxWidth: "600px",
+    padding: "2rem" }}>
       
       <Link 
         to="/" 
         style={{
-          padding: '0px 0px',
-          background: '',
+          
+          
           color: 'black',
           border: 'none',
           borderRadius: '0px',
@@ -179,6 +182,25 @@ export default function Login() {
       >
         ← 
       </Link>
+      
+            <Link 
+          to="/admin" 
+          style={{
+            border: 'none',
+            background: "white",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: "6px",
+            fontWeight: "bold",
+            display: 'flex',
+            justifyContent: 'end' ,
+            
+          lineHeight: '1'
+          }}
+        >
+          🔧 
+        </Link>
+    
       
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
@@ -294,22 +316,7 @@ export default function Login() {
 
       {error && <p style={{ color: "red", marginTop:"1rem"}}>{error}</p>}
       
-      {/* LINK KE ADMIN PANEL */}
-      <div style={{ textAlign: "left", marginTop: "5rem" }}>
-        <Link 
-          to="/admin" 
-          style={{
-            padding: "1px 1px",
-            background: "white",
-            color: "white",
-            textDecoration: "none",
-            borderRadius: "6px",
-            fontWeight: "bold"
-          }}
-        >
-          🔧 
-        </Link>
-      </div>
+
 
       <style>
         {`

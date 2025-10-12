@@ -146,7 +146,7 @@ function App2({ session }) {
         element={
           <Container
             fluid
-            className="pt-5"
+            className="pt-4"
             style={{
               width: "100%",
               minWidth: "360px",
@@ -650,7 +650,7 @@ function App2({ session }) {
             </div>
 
             {/* Footer Hak Cipta */}
-            <footer className="mt-4 text-center">
+            <footer className="mt-4 mt-10 text-center">
               <p className="small text-muted">&copy; 2025 BatamApp. All rights reserved.</p>
             </footer>
           </Container>

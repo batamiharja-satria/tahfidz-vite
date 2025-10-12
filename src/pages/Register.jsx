@@ -111,7 +111,10 @@ export default function Register() {
   };
 
   return (
-    <div className="container" style={{ padding: "2rem" }}>
+    <div className="container" style={{
+width: "100%",
+      maxWidth: "600px",
+    padding: "2rem" }}>
       
       
 <Link 
