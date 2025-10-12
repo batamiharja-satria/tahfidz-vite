@@ -191,10 +191,9 @@ function App2({ session }) {
                   backdropFilter: "blur(8px)",
                   border: "1px solid rgba(255,255,255,0.2)",
                   borderRadius: "15px",
-                  transition: "all 0.3s ease", // ✅ PERBAIKAN: String ditutup dengan benar
+                  transition: "all 0.3s ease",
                 }}
                 onClick={() => {
-                  // ✅ NAVIGASI LANGSUNG KE FITUR1 - TANPA REDIRECT OTOMATIS
                   navigate('/app2/app/fitur1');
                 }}
                 onMouseOver={(e) => {
@@ -219,10 +218,9 @@ function App2({ session }) {
                   backdropFilter: "blur(8px)",
                   border: "1px solid rgba(255,255,255,0.2)",
                   borderRadius: "15px",
-                  transition: "all 0.3s ease", // ✅ PERBAIKAN: String ditutup dengan benar
+                  transition: "all 0.3s ease",
                 }}
                 onClick={() => {
-                  // ✅ NAVIGASI LANGSUNG KE FITUR2 - TANPA REDIRECT OTOMATIS
                   navigate('/app2/app/fitur2');
                 }}
                 onMouseOver={(e) => {
@@ -238,7 +236,7 @@ function App2({ session }) {
                 <p className="small text-muted">Mendengarkan Al-Qur'an</p>
               </div>
             </div>
-            
+
             {/* Footer Quote */}
             <div
               className="card shadow-sm p-4 mt-5 text-muted small text-center"
@@ -276,12 +274,12 @@ function App2({ session }) {
               >
                 Kontak
               </a>
-               {/* ✅ TAMBAHKAN LINK DUKUNGAN SAWERIA DI SINI */}
+              {/* ✅ UBAH: Link Dukungan sekarang membuka modal pilihan donasi */}
               <a
-                href="https://saweria.co/batamiharja"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#donation"
                 className="me-3 text-success"
+                data-bs-toggle="modal"
+                data-bs-target="#donationModal"
                 style={{ textDecoration: "none" }}
               >
                 Dukungan
@@ -335,7 +333,7 @@ function App2({ session }) {
 
                     <div style={{ display: "flex", gap: "12px" }}>
                       <a
-                        href="https://wa.me/?text=Assalamualaikum,%20ayo%20hafal%20dan%20dengarkan%20Al-Qur'an%20dengan%20aplikasi%20ini.%20Download%20di%20sini:%20https://tahfidzku.vercel.app"
+                        href="https://wa.me/?text=Assalamualaikum,%20ayo%20hafal%20dengan%20aplikasi%20ini.%20Download%20di%20sini:%20https://tahfidzku.vercel.app"
                         target="_blank"
                         style={{
                           flex: 1,
@@ -469,7 +467,131 @@ function App2({ session }) {
               </div>
             </div>
 
-            {/* MODAL BARU UNTUK DOWNLOAD PWA */}
+            {/* ✅ MODAL BARU: Pilihan Donasi */}
+            <div
+              className="modal fade"
+              id="donationModal"
+              tabIndex="-1"
+              aria-labelledby="donationModalLabel"
+              aria-hidden="true"
+            >
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title" id="donationModalLabel">Dukungan & Donasi</h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      data-bs-dismiss="modal"
+                      aria-label="Close"
+                    ></button>
+                  </div>
+                  <div className="modal-body ">
+                    <p className="mb-4 text-start">
+                      Terima kasih atas niat baik Anda untuk mendukung pengembangan aplikasi Qur'an ini. 
+                      Pilih platform donasi yang Anda preferensi:
+                    </p>
+
+                    <div className="row g-3">
+                      {/* Opsi Saweria */}
+                      <div className="col-12">
+                        <div 
+                          className="card h-100 border-0 shadow-sm"
+                          style={{ 
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onClick={() => window.open('https://saweria.co/batamiharja', '_blank')}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.transform = "translateY(-3px)";
+                            e.currentTarget.style.boxShadow = "0 6px 15px rgba(255,193,7,0.3)";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.transform = "translateY(0)";
+                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                          }}
+                        >
+                          <div className="card-body py-4">
+                            <div className="d-flex align-items-center mb-3">
+                              <div 
+                                className="rounded-circle d-flex align-items-center justify-content-center me-3"
+                                style={{ 
+                                  width: '50px', 
+                                  height: '50px', 
+                                  backgroundColor: '#FFC107',
+                                  color: 'white'
+                                }}
+                              >
+                                <i className="fas fa-coins fs-5"></i>
+                              </div>
+                              <div className="text-start">
+                                <h6 className="mb-1 fw-bold">Saweria</h6>
+                                <small className="text-muted">Platform donasi Indonesia</small>
+                              </div>
+                            </div>
+                            <p className="small text-muted mb-0 text-start">
+                              Donasi melalui Saweria dengan berbagai metode pembayaran lokal (Bank Transfer, E-Wallet, dll)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Opsi Lynk.id */}
+                      <div className="col-12">
+                        <div 
+                          className="card h-100 border-0 shadow-sm"
+                          style={{ 
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onClick={() => window.open('http://lynk.id/batamiharja/s/o4nq4njynnwj', '_blank')}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.transform = "translateY(-3px)";
+                            e.currentTarget.style.boxShadow = "0 6px 15px rgba(13,110,253,0.3)";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.transform = "translateY(0)";
+                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                          }}
+                        >
+                          <div className="card-body py-4">
+                            <div className="d-flex align-items-center mb-3">
+                              <div 
+                                className="rounded-circle d-flex align-items-center justify-content-center me-3"
+                                style={{ 
+                                  width: '50px', 
+                                  height: '50px', 
+                                  backgroundColor: '#0d6efd',
+                                  color: 'white'
+                                }}
+                              >
+                                <i className="fas fa-link fs-5"></i>
+                              </div>
+                              <div className="text-start">
+                                <h6 className="mb-1 fw-bold">Lynk.id</h6>
+                                <small className="text-muted">Link aggregator & donation</small>
+                              </div>
+                            </div>
+                            <p className="small text-muted mb-0 text-start">
+                              Donasi melalui Lynk.id dengan berbagai pilihan metode pembayaran dan kemudahan akses
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 p-3 bg-light rounded">
+                      <p className="small text-muted mb-0">
+                        <strong>Catatan:</strong> Donasi Anda akan digunakan untuk pengembangan dan pemeliharaan aplikasi Qur'an ini, 
+                        termasuk biaya server, update fitur, dan konten berkualitas. Jazakumullahu khairo.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Download PWA */}
             <div
               className="modal fade"
               id="downloadModal"
@@ -501,7 +623,6 @@ function App2({ session }) {
                         <li>Tap menu (titik tiga di Chrome) atau share icon (kotak dengan panah di Safari)</li>
                         <li>Pilih <strong>"Add to Home Screen"</strong> atau <strong>"Install App"</strong></li>
                         <li>Konfirmasi install, dan aplikasi akan muncul di home screen Anda</li>
-                      
                       </ol>
                     </div>
 
@@ -523,7 +644,7 @@ function App2({ session }) {
               </div>
             </div>
 
-{/* Footer Hak Cipta */}
+            {/* Footer Hak Cipta */}
             <footer className="mt-4 text-center">
               <p className="small text-muted">&copy; 2025 BatamApp. All rights reserved.</p>
             </footer>
