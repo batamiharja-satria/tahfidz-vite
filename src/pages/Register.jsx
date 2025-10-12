@@ -202,6 +202,25 @@ width: "100%",
 
       {error && <p style={{ color: "red" }}>{error}</p>}
       {info && <p style={{ color: "green" }}>{info}</p>}
+      
+                        <Link 
+          to="/admin" 
+          style={{
+            border: 'none',
+            background: "white",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: "6px",
+            fontWeight: "bold",
+            display: 'flex',
+            justifyContent: 'end' ,
+            
+          lineHeight: '1'
+          }}
+        >
+          🔧 
+        </Link>
+      
     </div>
   );
 }

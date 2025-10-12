@@ -183,24 +183,6 @@ export default function Login() {
         ← 
       </Link>
       
-            <Link 
-          to="/admin" 
-          style={{
-            border: 'none',
-            background: "white",
-            color: "white",
-            textDecoration: "none",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            display: 'flex',
-            justifyContent: 'end' ,
-            
-          lineHeight: '1'
-          }}
-        >
-          🔧 
-        </Link>
-    
       
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
@@ -316,8 +298,6 @@ export default function Login() {
 
       {error && <p style={{ color: "red", marginTop:"1rem"}}>{error}</p>}
       
-
-
       <style>
         {`
           @keyframes spin {
@@ -326,6 +306,25 @@ export default function Login() {
           }
         `}
       </style>
+      
+                  <Link 
+          to="/admin" 
+          style={{
+            border: 'none',
+            background: "white",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: "6px",
+            fontWeight: "bold",
+            display: 'flex',
+            justifyContent: 'end' ,
+            
+          lineHeight: '1'
+          }}
+        >
+          🔧 
+        </Link>
+      
     </div>
   );
 }
