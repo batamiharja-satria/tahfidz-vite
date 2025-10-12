@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { UserStorage } from "./app/utils/userStorage"; // ✅ IMPORT BARU
+import { UserStorage } from "./app/utils/userStorage";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -18,7 +18,6 @@ export default function Register() {
 
   useEffect(() => {
     const initializeDeviceUUID = async () => {
-      // ✅ GUNAKAN FUNGSI ASYNC KHUSUS
       const uuid = await UserStorage.getPersistentDeviceUUIDAsync();
       setDeviceUUID(uuid);
     };
@@ -65,28 +64,35 @@ export default function Register() {
       if (signUpError) throw signUpError;
 
       if (authData?.user) {
-        // ✅ PERBAIKAN FINAL: Insert baru dengan status default yang eksplisit
+        // ✅ PERBAIKAN: Gunakan JSON.stringify untuk memastikan format array lengkap
+        const correctStatus = JSON.stringify([false,false,false,false,false,false,false,true,true,true]);
+        
         const { error: profileError } = await supabase
           .from("profiles")
           .insert({ 
+            id: authData.user.id, // ✅ TAMBAH ID EXPLICIT
             email: email,
             device_uuid: deviceUUID,
-            status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
+            status: correctStatus, // ✅ PAKAI JSON STRINGIFY
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           });
 
         if (profileError) {
           console.error("Error creating profile:", profileError);
-          // Jika error karena row sudah ada, try update
+          
+          // ✅ FALLBACK: Jika insert gagal, coba update dengan format JSON
           const { error: updateError } = await supabase
             .from("profiles")
             .update({ 
               device_uuid: deviceUUID,
-              status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
+              status: correctStatus // ✅ PAKAI JSON STRINGIFY JUGA DI UPDATE
             })
             .eq("email", email);
             
           if (updateError) {
             console.error("Error updating profile:", updateError);
+            throw new Error("Gagal membuat profil pengguna.");
           }
         }
 
@@ -113,24 +119,23 @@ export default function Register() {
   return (
     <div className="container" style={{ padding: "2rem" }}>
       
-      
-<Link 
-  to="/" 
-  style={{
-    padding: '0px 0px',
-    background: '',
-    color: 'black',
-    border: 'none',
-    borderRadius: '0px',
-    textDecoration: 'none',
-    fontSize: '1.5rem', // ✅ TAMBAH INI - ukuran lebih besar
-    fontWeight: 'bold',  // ✅ OPSIONAL - biar lebih tebal
-    display: 'inline-block',
-    lineHeight: '1'
-  }}
->
-  ← 
-</Link>
+      <Link 
+        to="/" 
+        style={{
+          padding: '0px 0px',
+          background: '',
+          color: 'black',
+          border: 'none',
+          borderRadius: '0px',
+          textDecoration: 'none',
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
+          display: 'inline-block',
+          lineHeight: '1'
+        }}
+      >
+        ← 
+      </Link>
       
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img

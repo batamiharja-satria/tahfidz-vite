@@ -150,7 +150,8 @@ function App2({ session }) {
             style={{
               width: "100%",
               minWidth: "360px",
-              height: "100vh",
+              
+              height: "100%",
               margin: "0 auto",
               padding: "40px 20px",
               background: "linear-gradient(135deg, #f9fdf9, #f0fdfa, #f9f9ff)",
@@ -180,68 +181,72 @@ function App2({ session }) {
               </div>
             )}
 
-            {/* Kartu Fitur */}
-            <div className="d-flex justify-content-center gap-3 flex-wrap mt-4">
-              <div
-                className="card shadow p-4 text-center clickable-card"
-                style={{
-                  flex: "1 1 300px",
-                  cursor: "pointer",
-                  background: "linear-gradient(135deg, rgba(40,167,69,0.15), rgba(23,162,184,0.15))",
-                  backdropFilter: "blur(8px)",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  borderRadius: "15px",
-                  transition: "all 0.3s ease",
-                }}
-                onClick={() => {
-                  navigate('/app2/app/fitur1');
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateY(-5px)";
-                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(23,162,184,0.3)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)";
-                }}
-              >
-                <h5>📖 Tahfidz</h5>
-                <p className="small text-muted">Mengingat hafalan Al-Qur'an</p>
-              </div>
+        {/* Kartu Fitur */}
+<div className="d-flex flex-column align-items-center gap-3 mt-4">
+  <div
+    className="card shadow text-center clickable-card"
+    style={{
+      width: "100%",
+      maxWidth: "600px",
+      cursor: "pointer",
+      background: "linear-gradient(135deg, rgba(40,167,69,0.15), rgba(23,162,184,0.15))",
+      backdropFilter: "blur(8px)",
+      border: "1px solid rgba(255,255,255,0.2)",
+      borderRadius: "15px",
+      transition: "all 0.3s ease",
+      padding: "2rem 1.5rem"
+    }}
+    onClick={() => {
+      navigate('/app2/app/fitur1');
+    }}
+    onMouseOver={(e) => {
+      e.currentTarget.style.transform = "translateY(-5px)";
+      e.currentTarget.style.boxShadow = "0 8px 20px rgba(23,162,184,0.3)";
+    }}
+    onMouseOut={(e) => {
+      e.currentTarget.style.transform = "translateY(0)";
+      e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)";
+    }}
+  >
+    <h5 className="mb-2">📖 Tahfidz</h5>
+    <p className="small text-muted mb-0">Mengingat hafalan Al-Qur'an</p>
+  </div>
 
-              <div
-                className="card shadow p-4 text-center clickable-card"
-                style={{
-                  flex: "1 1 300px",
-                  cursor: "pointer",
-                  background: "linear-gradient(135deg, rgba(23,162,184,0.15), rgba(40,167,69,0.15))",
-                  backdropFilter: "blur(8px)",
-                  border: "1px solid rgba(255,255,255,0.2)",
-                  borderRadius: "15px",
-                  transition: "all 0.3s ease",
-                }}
-                onClick={() => {
-                  navigate('/app2/app/fitur2');
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = "translateY(-5px)";
-                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(40,167,69,0.3)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)";
-                }}
-              >
-                <h5>🎧 Istima'</h5>
-                <p className="small text-muted">Mendengarkan Al-Qur'an</p>
-              </div>
-            </div>
+  <div
+    className="card shadow text-center clickable-card"
+    style={{
+      width: "100%",
+      maxWidth: "600px",
+      cursor: "pointer",
+      background: "linear-gradient(135deg, rgba(23,162,184,0.15), rgba(40,167,69,0.15))",
+      backdropFilter: "blur(8px)",
+      border: "1px solid rgba(255,255,255,0.2)",
+      borderRadius: "15px",
+      transition: "all 0.3s ease",
+      padding: "2rem 1.5rem"
+    }}
+    onClick={() => {
+      navigate('/app2/app/fitur2');
+    }}
+    onMouseOver={(e) => {
+      e.currentTarget.style.transform = "translateY(-5px)";
+      e.currentTarget.style.boxShadow = "0 8px 20px rgba(40,167,69,0.3)";
+    }}
+    onMouseOut={(e) => {
+      e.currentTarget.style.transform = "translateY(0)";
+      e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)";
+    }}
+  >
+    <h5 className="mb-2">🎧 Istima'</h5>
+    <p className="small text-muted mb-0">Mendengarkan Al-Qur'an</p>
+  </div>
+</div>
 
             {/* Footer Quote */}
             <div
               className="card shadow-sm p-4 mt-5 text-muted small text-center"
               style={{
-                maxWidth: "700px",
+                maxWidth: "600px",
                 margin: "0 auto",
                 background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(245,245,245,0.6))",
                 backdropFilter: "blur(6px)",
