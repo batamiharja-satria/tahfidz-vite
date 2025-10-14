@@ -483,7 +483,7 @@ function App2({ session }) {
               <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                   <div className="modal-header">
-                    <h5 className="modal-title" id="donationModalLabel">Dukungan & Donasi</h5>
+                    <h5 className="modal-title" id="donationModalLabel">Donasi</h5>
                     <button
                       type="button"
                       className="btn-close"
@@ -493,8 +493,8 @@ function App2({ session }) {
                   </div>
                   <div className="modal-body ">
                     <p className="mb-4 text-start">
-                      Terima kasih atas niat baik Anda untuk mendukung pengembangan aplikasi Qur'an ini. 
-                      Pilih platform donasi yang Anda preferensi:
+                      
+                      Pilih platform donasi:
                     </p>
 
                     <div className="row g-3">
@@ -535,7 +535,7 @@ function App2({ session }) {
                               </div>
                             </div>
                             <p className="small text-muted mb-0 text-start">
-                              Donasi melalui Saweria dengan berbagai metode pembayaran lokal (Bank Transfer, E-Wallet, dll)
+                              Metode pembayaran lokal (Bank, E-Wallet, dll)
                             </p>
                           </div>
                         </div>
@@ -578,12 +578,65 @@ function App2({ session }) {
                               </div>
                             </div>
                             <p className="small text-muted mb-0 text-start">
-                              Donasi melalui Lynk.id dengan berbagai pilihan metode pembayaran dan kemudahan akses
+                              Metode pembayaran dan kemudahan akses
                             </p>
                           </div>
                         </div>
                       </div>
+                      
+                       {/* Opsi Transfer Langsung */}
+                      <div className="col-12">
+                        <div 
+                          className="card h-100 border-0 shadow-sm"
+                          style={{ 
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease'
+                          }}
+                          
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.transform = "translateY(-3px)";
+                            e.currentTarget.style.boxShadow = "0 6px 15px rgba(13,110,253,0.3)";
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.transform = "translateY(0)";
+                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
+                          }}
+                        >
+                          <div className="card-body py-4">
+                            <div className="d-flex align-items-center mb-3">
+                              <div 
+                                className="rounded-circle d-flex align-items-center justify-content-center me-3"
+                                style={{ 
+                                  width: '50px', 
+                                  height: '50px', 
+                                  backgroundColor: '#74eb34',
+                                  color: 'white'
+                                }}
+                              >
+                                <i className="fas fa-link fs-5"></i>
+                              </div>
+                              <div className="text-start">
+                                <h6 className="mb-1 fw-bold">Transfer Langsung </h6>
+                                <small className="text-muted">Bank Mandiri</small>
+                              </div>
+                            </div>
+                            <p className="small text-muted mb-0 text-start">
+                              1090020833075 - SATRIA BATAMIHARJA
+                              <span
+        onClick={() => {
+          navigator.clipboard.writeText('1090020833075');
+          alert('Nomor rekening berhasil disalin!');
+        }} >
+        <span style={{marginLeft:'2px'}}> 📋</span>
+      </span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
                     </div>
+                    
+
 
                     <div className="mt-4 p-3 bg-light rounded">
                       <p className="small text-muted mb-0">

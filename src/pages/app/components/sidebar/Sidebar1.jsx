@@ -344,23 +344,7 @@ const Sidebar1 = forwardRef(({
       }}
     >
       <ul className="nav flex-column p-3">
-        {/* ✅ TOMBOL BARU: PINDAH FITUR */}
-        <li className="nav-item">
-          <button
-            style={styles.pindahFiturButton}
-            onClick={() => handlePindahFitur(isFitur1 ? 'fitur2' : 'fitur1')}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "linear-gradient(135deg, rgba(23,162,184,0.5), rgba(40,167,69,0.5))";
-              e.currentTarget.style.transform = "translateX(5px)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "linear-gradient(135deg, rgba(23,162,184,0.3), rgba(40,167,69,0.3))";
-              e.currentTarget.style.transform = "translateX(0)";
-            }}
-          >
-            {isFitur1 ? "🎧 PINDAH KE ISTIMA'" : "📖 PINDAH KE TAHFIDZ"}
-          </button>
-        </li>
+
 
         {/* ✅ PERBAIKAN: Tombol BERANDA menggunakan fungsi handleBerandaClick */}
         <li className="nav-item">
