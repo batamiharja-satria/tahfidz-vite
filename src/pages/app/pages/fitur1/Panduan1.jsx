@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
-const Panduan1 = () => {
+const Panduan3 = () => {
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const contentRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -77,12 +79,11 @@ const Panduan1 = () => {
         `}
       </style>
 
-      <h2 className="text-center mb-4" style={{ marginBottom: "2rem" }}>📖 Panduan Fitur Tahfidz</h2>
+      <h2 className="text-center mb-4" style={{ marginBottom: "2rem" }}>📚 Panduan Fitur Ma'na</h2>
       
-      {/* KONTEN ASLI TETAP SAMA */}
       <div className="mb-4" style={{ marginBottom: "2rem" }}>
         <p className="text-center text-muted" style={{ textAlign: "justify", textAlignLast: "center" }}>
-          Fitur ini membantu Anda <strong>menguji hafalan secara mandiri</strong> dengan sistem level bantuan yang dapat disesuaikan.
+          Fitur ini memungkinkan Anda <strong>mempelajari makna setiap kata dalam Al-Quran</strong> dengan sistem input personal yang tersimpan otomatis.
         </p>
       </div>
 
@@ -93,83 +94,97 @@ const Panduan1 = () => {
             <strong>Pilih Surat</strong> - Buka sidebar, pilih surat dari premium yang aktif
           </li>
           <li style={{ marginBottom: "0.8rem" }}>
-            <strong>Atur Level Bantuan</strong> - Tekan tombol "Tambah" untuk menyesuaikan jumlah kata panduan:
+            <strong>Pelajari Kata Per Kata</strong> - Klik pada kata Arab untuk membuka editor makna:
             <ul className="small mt-2" style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Level 0:</strong> Tes hafalan tanpa bantuan</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Level 1:</strong> 1 kata panduan</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Level 2:</strong> 2 kata panduan</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Level 3:</strong> 3 kata panduan (bantuan maksimal)</li>
+              <li style={{ marginBottom: "0.4rem" }}><strong>Input Makna</strong> - Ketik arti kata dalam bahasa Indonesia</li>
+              <li style={{ marginBottom: "0.4rem" }}><strong>Simpan Otomatis</strong> - Data tersimpan langsung ke database</li>
+              <li style={{ marginBottom: "0.4rem" }}><strong>Edit Kapan Saja</strong> - Klik kembali untuk mengubah makna</li>
             </ul>
           </li>
           <li style={{ marginBottom: "0.8rem" }}>
-            <strong>Gunakan Mode Bantuan ketika Lupa:</strong>
+            <strong>Tambah Catatan Ayat</strong> - Klik ikon 📝 di akhir ayat untuk:
             <ul className="small mt-2" style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
-              <li style={{ marginBottom: "0.4rem" }}><strong>🔊 Audio</strong> - Untuk mendengar pelafalan yang benar</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>👁 Lihat Ayat Lengkap</strong> - Untuk membaca teks Arab seutuhnya</li>
+              <li style={{ marginBottom: "0.4rem" }}><strong>Keterangan Tafsir</strong> - Tambah penjelasan konteks ayat</li>
+              <li style={{ marginBottom: "0.4rem" }}><strong>Catatan Pribadi</strong> - Simpan insight atau renungan</li>
+              <li style={{ marginBottom: "0.4rem" }}><strong>Ringkasan Makna</strong> - Poin penting dari ayat tersebut</li>
             </ul>
           </li>
           <li style={{ marginBottom: "0.8rem" }}>
-            <strong>Tandai Hafalan</strong> - Centang ✅ hanya ketika sudah hafal sempurna di level 0
+            <strong>Review Pembelajaran</strong> - Kembali ke surat yang sama untuk melihat catatan yang sudah dibuat
           </li>
         </ol>
       </div>
 
       <div className="mb-4" style={{ marginBottom: "2.5rem" }}>
-        <h6 style={{ marginBottom: "1rem" }}>💡 Strategi Setor Hafalan:</h6>
+        <h6 style={{ marginBottom: "1rem" }}>💡 Tips Belajar Efektif:</h6>
         <ul style={{ paddingLeft: "1.5rem" }}>
           <li style={{ marginBottom: "0.6rem", textAlign: "justify" }}>
-            Mulai tes di <strong>level 0</strong> untuk menguji hafalan tanpa bantuan
+            Mulai dengan <strong>surat pendek</strong> seperti Al-Fatihah dan Juz 30
           </li>
           <li style={{ marginBottom: "0.6rem", textAlign: "justify" }}>
-            Jika lupa, naikkan level bantuan atau gunakan <strong>audio/teks lengkap</strong>
+            Fokus pada <strong>kata-kata yang sering muncul</strong> dalam Al-Quran
           </li>
           <li style={{ marginBottom: "0.6rem", textAlign: "justify" }}>
-            Turunkan level bantuan secara bertahap hingga bisa di <strong>level 0</strong>
+            Gunakan <strong>catatan ayat untuk ringkasan tafsir</strong> yang mudah diingat
           </li>
           <li style={{ marginBottom: "0.6rem", textAlign: "justify" }}>
-            Gunakan <strong>audio untuk memperbaiki tajwid</strong> dan pelafalan
+            Review secara <strong>berkala untuk memperkuat hafalan makna</strong>
           </li>
           <li style={{ marginBottom: "0.6rem", textAlign: "justify" }}>
-            Gunakan <strong>lihat ayat lengkap untuk mengingat urutan</strong> yang terlupa
+            Kombinasikan dengan <strong>fitur Tahfidz untuk hafalan teks</strong> Arabnya
           </li>
         </ul>
       </div>
 
       <div className="p-3 bg-light rounded" style={{ padding: "1.5rem", marginBottom: "1rem" }}>
-        <h6 style={{ marginBottom: "1.2rem", textAlign: "center" }}>🔄 Alur Setor Hafalan Mandiri:</h6>
+        <h6 style={{ marginBottom: "1.2rem", textAlign: "center" }}>🔄 Alur Belajar Ma'na:</h6>
         <div className="small">
           <div className="d-flex justify-content-between mb-3" style={{ marginBottom: "1.2rem" }}>
             <div style={{ textAlign: "center", flex: "1" }}>
-              <div style={{ fontSize: "1.5rem" }}>🧪</div>
-              <div>Mulai Tes</div>
-              <small>(Level 0)</small>
+              <div style={{ fontSize: "1.5rem" }}>📖</div>
+              <div>Baca Ayat</div>
+              <small>Per kata</small>
             </div>
             <div style={{ display: "flex", alignItems: "center", padding: "0 0.5rem" }}>→</div>
             <div style={{ textAlign: "center", flex: "1" }}>
-              <div style={{ fontSize: "1.5rem" }}>🆘</div>
-              <div>Jika Lupa</div>
-              <small>Audio/Teks</small>
+              <div style={{ fontSize: "1.5rem" }}>🖱️</div>
+              <div>Klik Kata</div>
+              <small>Input makna</small>
             </div>
             <div style={{ display: "flex", alignItems: "center", padding: "0 0.5rem" }}>→</div>
             <div style={{ textAlign: "center", flex: "1" }}>
-              <div style={{ fontSize: "1.5rem" }}>📚</div>
-              <div>Latihan</div>
-              <small>(Level 3→0)</small>
+              <div style={{ fontSize: "1.5rem" }}>📝</div>
+              <div>Catatan Ayat</div>
+              <small>Keterangan</small>
             </div>
             <div style={{ display: "flex", alignItems: "center", padding: "0 0.5rem" }}>→</div>
             <div style={{ textAlign: "center", flex: "1" }}>
-              <div style={{ fontSize: "1.5rem" }}>✅</div>
-              <div>Lulus Tes</div>
-              <small>(Level 0)</small>
+              <div style={{ fontSize: "1.5rem" }}>💾</div>
+              <div>Simpan</div>
+              <small>Otomatis</small>
             </div>
           </div>
           <p className="text-center mb-0" style={{ textAlign: "justify", textAlignLast: "center" }}>
-            <em>Dua mode bantuan: 🔊 Audio untuk pelafalan, 👁 Teks lengkap untuk pengingat</em>
+            <em>Dua jenis input: 🖱️ Makna per kata, 📝 Catatan per ayat</em>
           </p>
         </div>
+      </div>
+
+      <div className="text-center mt-4">
+        <button 
+          className="btn btn-primary"
+          onClick={() => navigate('/fitur3')}
+          style={{
+            padding: "10px 30px",
+            fontSize: "16px",
+            fontWeight: "bold"
+          }}
+        >
+          Mulai Belajar Ma'na
+        </button>
       </div>
     </div>
   );
 };
 
-export default Panduan1;
+export default Panduan3;

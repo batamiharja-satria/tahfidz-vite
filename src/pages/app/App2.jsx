@@ -4,6 +4,7 @@ import { Container, Button } from "react-bootstrap";
 import { useNavigate, Routes, Route, Link, useLocation } from "react-router-dom";
 import Index1 from "./pages/fitur1/Index1";
 import Index2 from "./pages/fitur2/Index2";
+import Index3 from "./pages/fitur3/Index3";
 import { UserStorage } from "./utils/userStorage";
 
 function App2({ session }) {
@@ -239,6 +240,36 @@ function App2({ session }) {
   >
     <h5 className="mb-2">🎧 Istima'</h5>
     <p className="small text-muted mb-0">Mendengarkan Al-Qur'an</p>
+  </div>
+
+
+  <div
+    className="card shadow text-center clickable-card"
+    style={{
+      width: "100%",
+      maxWidth: "600px",
+      cursor: "pointer",
+      background: "linear-gradient(135deg, rgba(23,162,184,0.15), rgba(40,167,69,0.15))",
+      backdropFilter: "blur(8px)",
+      border: "1px solid rgba(255,255,255,0.2)",
+      borderRadius: "15px",
+      transition: "all 0.3s ease",
+      padding: "2rem 1.5rem"
+    }}
+    onClick={() => {
+      navigate('/app2/app/fitur3');
+    }}
+    onMouseOver={(e) => {
+      e.currentTarget.style.transform = "translateY(-5px)";
+      e.currentTarget.style.boxShadow = "0 8px 20px rgba(40,167,69,0.3)";
+    }}
+    onMouseOut={(e) => {
+      e.currentTarget.style.transform = "translateY(0)";
+      e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.1)";
+    }}
+  >
+     <h5 className="mb-2">📝 Ma'na</h5>
+    <p className="small text-muted mb-0">Mema'nai Al-Qur'an</p>
   </div>
 </div>
 
@@ -718,6 +749,10 @@ function App2({ session }) {
       <Route 
         path="app/fitur2/*" 
         element={<Index2 session={session} userStatus={userStatus} />} 
+      />
+       <Route 
+        path="app/fitur3/*" 
+        element={<Index3 session={session} userStatus={userStatus} />} 
       />
     </Routes>
   );

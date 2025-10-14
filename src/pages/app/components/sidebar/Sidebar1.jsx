@@ -1,3 +1,6 @@
+// Di file: src/components/sidebar/Sidebar1.jsx
+
+// PERBAIKAN: Update basePath logic dan navigation untuk fitur3
 import React, { useEffect, useState, forwardRef } from "react";
 import { Link, useLocation, useNavigate} from "react-router-dom";
 import { Modal, Button, Form } from "react-bootstrap";
@@ -9,11 +12,12 @@ import { UserStorage } from "../../utils/userStorage";
 const Sidebar1 = forwardRef(({ 
   isOpen, 
   toggleSidebar, 
-  basePath = "/app2/app/fitur1", 
+  basePath = "/app2/app/fitur1", // Default tetap fitur1
   session, 
   userStatus
 }, ref) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [suratList, setSuratList] = useState([]);
   const [maxWidth, setMaxWidth] = useState("250px");
   const [openPremium, setOpenPremium] = useState(null);
@@ -21,11 +25,15 @@ const Sidebar1 = forwardRef(({
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedPremiums, setSelectedPremiums] = useState([]);
   const [userEmail, setUserEmail] = useState("");
-  const navigate = useNavigate();
 
-  // ✅ Cek apakah sedang di fitur1 atau fitur2
-  const isFitur1 = location.pathname.includes('/fitur1');
-  const isFitur2 = location.pathname.includes('/fitur2');
+  // ✅ PERBAIKAN: Deteksi fitur aktif dengan lebih akurat
+  const currentFitur = location.pathname.includes('/fitur3') ? 'fitur3' : 
+                      location.pathname.includes('/fitur2') ? 'fitur2' : 'fitur1';
+
+  // ✅ PERBAIKAN: Set basePath otomatis berdasarkan fitur aktif
+  const actualBasePath = currentFitur === 'fitur3' ? '/app2/app/fitur3' :
+                        currentFitur === 'fitur2' ? '/app2/app/fitur2' : 
+                        '/app2/app/fitur1';
 
   // ✅ EFFECT UNTUK MENGONTROL BODY SCROLL
   useEffect(() => {
@@ -56,7 +64,6 @@ const Sidebar1 = forwardRef(({
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
     toggleSidebar();
     
-    // ✅ PASTIKAN NAVIGASI KE BERANDA TANPA REDIRECT
     if (location.pathname !== '/app2') {
       navigate("/app2", { replace: true });
     }
@@ -68,18 +75,26 @@ const Sidebar1 = forwardRef(({
     toggleSidebar();
   };
 
-  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN USERSTORAGE
+  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN basePath yang benar
   const handlePindahFitur = (targetFitur) => {
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
     toggleSidebar();
     
     const lastPage = UserStorage.getHistory(session, targetFitur);
     
-    if (lastPage && lastPage !== `/app2/app/${targetFitur}` && lastPage !== `/app2/app/${targetFitur}/panduan${targetFitur === 'fitur1' ? '1' : '2'}`) {
+    if (lastPage && lastPage !== `/app2/app/${targetFitur}` && 
+        lastPage !== `/app2/app/${targetFitur}/panduan${targetFitur.slice(-1)}`) {
       navigate(lastPage);
     } else {
       navigate(`/app2/app/${targetFitur}`);
     }
+  };
+
+  // ✅ FUNGSI BARU: Handle klik surat dengan basePath yang benar
+  const handleSuratClickWithBase = (suratNomor) => {
+    window.dispatchEvent(new CustomEvent('stopAllAudio'));
+    toggleSidebar();
+    navigate(`${actualBasePath}/${suratNomor}`);
   };
 
   // ✅ FUNGSI BARU: Handle tombol "BUKA SURAT TERKUNCI" dengan modal konfirmasi
@@ -99,7 +114,7 @@ const Sidebar1 = forwardRef(({
     navigate('/login', { state: { from: location } });
   };
 
-  // ✅ PERBAIKAN: Fungsi hitung progress dengan UserStorage
+  // ✅ PERBAIKAN: Fungsi hitung progress dengan UserStorage - sesuaikan untuk fitur3
   const getSuratProgress = (suratNomor, totalAyat) => {
     let hafalCount = 0;
     for (let i = 1; i <= totalAyat; i++) {
@@ -344,8 +359,6 @@ const Sidebar1 = forwardRef(({
       }}
     >
       <ul className="nav flex-column p-3">
-
-
         {/* ✅ PERBAIKAN: Tombol BERANDA menggunakan fungsi handleBerandaClick */}
         <li className="nav-item">
           <button
@@ -357,32 +370,19 @@ const Sidebar1 = forwardRef(({
           </button>
         </li>
 
-        {/* ✅ Panduan - TOGGLE berdasarkan halaman aktif */}
-        {isFitur1 && (
-          <li className="nav-item">
-            <Link
-              to="/app2/app/fitur1"
-              className="nav-link"
-              style={styles.navLink}
-              onClick={handleSuratClick}
-            >
-              PANDUAN TAHFIDZ
-            </Link>
-          </li>
-        )}
-        
-        {isFitur2 && (
-          <li className="nav-item">
-            <Link
-              to="/app2/app/fitur2"
-              className="nav-link"
-              style={styles.navLink}
-              onClick={handleSuratClick}
-            >
-              PANDUAN ISTIMA'
-            </Link>
-          </li>
-        )}
+        {/* ✅ PERBAIKAN: Panduan dengan basePath yang benar */}
+        <li className="nav-item">
+          <Link
+            to={actualBasePath}
+            className="nav-link"
+            style={styles.navLink}
+            onClick={handleSuratClick}
+          >
+            {currentFitur === 'fitur3' ? 'PANDUAN MA\'NA' : 
+             currentFitur === 'fitur2' ? 'PANDUAN ISTIMA\'' : 
+             'PANDUAN TAHFIDZ'}
+          </Link>
+        </li>
 
         {/* ✅ PERBAIKAN: Tombol Buka Surat - SELALU TAMPIL (baik login atau belum) */}
         {!semuaPremiumDibeli() && (
@@ -397,7 +397,7 @@ const Sidebar1 = forwardRef(({
           </li>
         )}
 
-        {/* ✅ Premium Aktif dengan Progress */}
+        {/* ✅ PERBAIKAN: Premium Aktif dengan Progress - gunakan actualBasePath */}
         {Object.keys(groupedByPremium).map((premiumKey) => {
           const premiumProgress = getPremiumProgress(groupedByPremium[premiumKey]);
           const progressColor = getProgressColor(premiumProgress);
@@ -433,18 +433,17 @@ const Sidebar1 = forwardRef(({
                     
                     return (
                       <li key={surat.nomor}>
-                        <Link
-                          to={`${basePath}/${surat.nomor}`}
+                        <button
                           className="nav-link"
                           style={styles.navLink}
-                          onClick={handleSuratClick}
+                          onClick={() => handleSuratClickWithBase(surat.nomor)}
                         >
                           {surat.nomor} {surat.nama_latin || surat.nama} (
                           <span style={{ color: suratProgressColor, fontWeight: 'bold' }}>
                             {suratProgress}%
                           </span>
                           )
-                        </Link>
+                        </button>
                       </li>
                     );
                   })}
