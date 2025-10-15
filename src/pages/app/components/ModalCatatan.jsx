@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert, Badge } from 'react-bootstrap';
+import { quranDataService } from '../utils/googleSheetsService';
 
 const ModalCatatan = ({ 
   show, 
@@ -17,21 +18,36 @@ const ModalCatatan = ({
   useEffect(() => {
     if (show && ayatData) {
       console.log('ModalCatatan dibuka untuk:', ayatData);
-      console.log('Existing data:', existingData);
       
-      if (existingData) {
-        // Jika sudah ada data, tampilkan dan mode read-only
-        setInputText(existingData.catatan || '');
-        setSavedData(existingData);
-        setIsEditing(false);
-      } else {
-        // Jika belum ada data, mode create
-        setInputText('');
-        setSavedData(null);
-        setIsEditing(true);
-      }
+      // Load existing data
+      const loadData = async () => {
+        try {
+          const result = await quranDataService.getCatatanByAyat(
+            ayatData.userId,
+            ayatData.surahNumber, 
+            ayatData.ayatNumber
+          );
+          
+          if (result) {
+            setInputText(result.keterangan || '');
+            setSavedData(result);
+            setIsEditing(false);
+          } else {
+            setInputText('');
+            setSavedData(null);
+            setIsEditing(true);
+          }
+        } catch (error) {
+          console.error('Error loading catatan:', error);
+          setInputText('');
+          setSavedData(null);
+          setIsEditing(true);
+        }
+      };
+
+      loadData();
     }
-  }, [show, ayatData, existingData]);
+  }, [show, ayatData]);
 
   const handleSave = async () => {
     if (inputText.trim()) {
@@ -39,26 +55,37 @@ const ModalCatatan = ({
       
       try {
         const dataToSave = {
-          id: savedData?.id || `catatan_${Date.now()}`,
           user_id: ayatData.userId,
           surah: ayatData.surahNumber,
           ayat: ayatData.ayatNumber,
-          catatan: inputText.trim(),
-          timestamp: new Date().toISOString()
+          kata_index: -1, // Tanda bahwa ini adalah catatan ayat
+          kata_text: '', // Kosong untuk catatan ayat
+          makna: '', // Kosong untuk catatan ayat
+          keterangan: inputText.trim(), // Disimpan di sini
         };
 
-        // TODO: Integrasi dengan Google Sheets API
-        console.log('Menyimpan catatan ke Google Sheets:', dataToSave);
+        let result;
+        if (savedData) {
+          // Update existing
+          result = await quranDataService.updateData(savedData.id, dataToSave);
+        } else {
+          // Add new
+          result = await quranDataService.saveCatatan(dataToSave);
+        }
         
-        // Simulasi API call
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Reload data untuk mendapatkan ID jika baru
+        const updatedData = await quranDataService.getCatatanByAyat(
+          ayatData.userId,
+          ayatData.surahNumber, 
+          ayatData.ayatNumber
+        );
         
-        setSavedData(dataToSave);
+        setSavedData(updatedData);
         setIsEditing(false);
         
         // Panggil callback ke parent untuk update state
         if (onSave) {
-          onSave(dataToSave);
+          onSave(updatedData);
         }
         
       } catch (error) {
@@ -78,10 +105,9 @@ const ModalCatatan = ({
     if (window.confirm('Hapus catatan untuk ayat ini?')) {
       setIsLoading(true);
       try {
-        // TODO: Delete dari Google Sheets
-        console.log('Menghapus catatan:', savedData);
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
+        if (savedData && savedData.id) {
+          await quranDataService.deleteData(savedData.id);
+        }
         
         setInputText('');
         setSavedData(null);

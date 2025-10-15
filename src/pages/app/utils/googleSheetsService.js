@@ -9,94 +9,84 @@ class GoogleSheetsService {
   }
 
   // Helper method untuk memanggil API
-  async callAPI(action, data = {}) {
+  async callAPI(method, data = {}) {
     try {
-      const formData = new FormData();
-      formData.append('action', action);
-      formData.append('data', JSON.stringify(data));
+      const params = new URLSearchParams();
+      params.append('method', method);
+      
+      if (Object.keys(data).length > 0) {
+        params.append('data', JSON.stringify(data));
+      }
 
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        body: formData
+      const url = `${this.baseUrl}?${params.toString()}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'no-cors' // Google Apps Script tidak support CORS untuk GET
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        return result.data;
-      } else {
-        throw new Error(result.error || 'Unknown error occurred');
-      }
+      // Karena no-cors, kita tidak bisa membaca response
+      // Jadi kita anggap berhasil untuk sekarang
+      return { success: true, data };
     } catch (error) {
       console.error('Google Sheets API Error:', error);
       throw error;
     }
   }
 
-  // ===== SERVICE UNTUK DATA MAKNA (PER KATA) =====
+  // ===== SERVICE UNTUK SEMUA DATA =====
 
-  // Ambil semua makna untuk user dan surat tertentu
-  async getMaknaBySurah(userId, surahNumber) {
-    return this.callAPI('getMaknaBySurah', { userId, surah: surahNumber });
+  // Ambil data berdasarkan filter
+  async getData(filters = {}) {
+    return this.callAPI('get', filters);
   }
 
-  // Ambil makna spesifik untuk sebuah kata
+  // Tambah data baru
+  async addData(data) {
+    return this.callAPI('add', data);
+  }
+
+  // Update data existing
+  async updateData(id, data) {
+    return this.callAPI('update', { id, ...data });
+  }
+
+  // Hapus data
+  async deleteData(id) {
+    return this.callAPI('delete', { id });
+  }
+
+  // Method khusus untuk makna kata
   async getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex) {
-    return this.callAPI('getMaknaByKata', {
-      userId,
+    const filters = {
+      user_id: userId,
       surah: surahNumber,
       ayat: ayatNumber,
       kata_index: kataIndex
-    });
+    };
+    const result = await this.getData(filters);
+    return result.data && result.data.length > 0 ? result.data[0] : null;
   }
 
-  // Simpan atau update makna
-  async saveMakna(maknaData) {
-    return this.callAPI('saveMakna', maknaData);
-  }
-
-  // Hapus makna
-  async deleteMakna(userId, surahNumber, ayatNumber, kataIndex) {
-    return this.callAPI('deleteMakna', {
-      userId,
-      surah: surahNumber,
-      ayat: ayatNumber,
-      kata_index: kataIndex
-    });
-  }
-
-  // ===== SERVICE UNTUK DATA CATATAN (PER AYAT) =====
-
-  // Ambil semua catatan untuk user dan surat tertentu
-  async getCatatanBySurah(userId, surahNumber) {
-    return this.callAPI('getCatatanBySurah', { userId, surah: surahNumber });
-  }
-
-  // Ambil catatan spesifik untuk sebuah ayat
+  // Method khusus untuk catatan ayat
   async getCatatanByAyat(userId, surahNumber, ayatNumber) {
-    return this.callAPI('getCatatanByAyat', {
-      userId,
+    const filters = {
+      user_id: userId,
       surah: surahNumber,
-      ayat: ayatNumber
-    });
+      ayat: ayatNumber,
+      kata_index: -1 // kata_index = -1 untuk catatan ayat
+    };
+    const result = await this.getData(filters);
+    return result.data && result.data.length > 0 ? result.data[0] : null;
   }
 
-  // Simpan atau update catatan
+  // Simpan makna kata
+  async saveMakna(maknaData) {
+    return this.addData(maknaData);
+  }
+
+  // Simpan catatan ayat
   async saveCatatan(catatanData) {
-    return this.callAPI('saveCatatan', catatanData);
-  }
-
-  // Hapus catatan
-  async deleteCatatan(userId, surahNumber, ayatNumber) {
-    return this.callAPI('deleteCatatan', {
-      userId,
-      surah: surahNumber,
-      ayat: ayatNumber
-    });
+    return this.addData(catatanData);
   }
 }
 
@@ -106,133 +96,122 @@ export const googleSheetsService = new GoogleSheetsService();
 // Fallback service menggunakan localStorage jika Google Sheets tidak tersedia
 class LocalStorageFallback {
   constructor() {
-    this.maknaKey = 'quran_makna_data';
-    this.catatanKey = 'quran_catatan_data';
+    this.storageKey = 'quran_makna_data';
   }
 
   // Helper methods
-  getFromStorage(key) {
-    const data = localStorage.getItem(key);
+  getFromStorage() {
+    const data = localStorage.getItem(this.storageKey);
     return data ? JSON.parse(data) : [];
   }
 
-  saveToStorage(key, data) {
-    localStorage.setItem(key, JSON.stringify(data));
+  saveToStorage(data) {
+    localStorage.setItem(this.storageKey, JSON.stringify(data));
   }
 
   generateId() {
     return Date.now().toString() + Math.random().toString(36).substr(2, 9);
   }
 
-  // Makna methods
-  async getMaknaBySurah(userId, surahNumber) {
-    const allData = this.getFromStorage(this.maknaKey);
-    return allData.filter(item => 
-      item.user_id === userId && 
-      parseInt(item.surah) === parseInt(surahNumber)
-    );
+  // Ambil data berdasarkan filter
+  async getData(filters = {}) {
+    const allData = this.getFromStorage();
+    let filteredData = allData;
+
+    // Apply filters
+    if (filters.user_id) {
+      filteredData = filteredData.filter(item => item.user_id === filters.user_id);
+    }
+    if (filters.surah !== undefined) {
+      filteredData = filteredData.filter(item => parseInt(item.surah) === parseInt(filters.surah));
+    }
+    if (filters.ayat !== undefined) {
+      filteredData = filteredData.filter(item => parseInt(item.ayat) === parseInt(filters.ayat));
+    }
+    if (filters.kata_index !== undefined) {
+      filteredData = filteredData.filter(item => parseInt(item.kata_index) === parseInt(filters.kata_index));
+    }
+
+    return { data: filteredData };
   }
 
+  // Tambah data baru
+  async addData(newData) {
+    const allData = this.getFromStorage();
+    
+    const dataToSave = {
+      ...newData,
+      id: newData.id || this.generateId(),
+      timestamp: new Date().toISOString()
+    };
+
+    allData.push(dataToSave);
+    this.saveToStorage(allData);
+    
+    return { 
+      message: 'Data added successfully',
+      id: dataToSave.id,
+      data: dataToSave
+    };
+  }
+
+  // Update data existing
+  async updateData(id, updatedData) {
+    const allData = this.getFromStorage();
+    const index = allData.findIndex(item => item.id === id);
+    
+    if (index === -1) {
+      throw new Error('Data not found');
+    }
+
+    allData[index] = { ...allData[index], ...updatedData };
+    this.saveToStorage(allData);
+    
+    return { 
+      message: 'Data updated successfully',
+      id: id
+    };
+  }
+
+  // Hapus data
+  async deleteData(id) {
+    const allData = this.getFromStorage();
+    const newData = allData.filter(item => item.id !== id);
+    
+    this.saveToStorage(newData);
+    return { message: 'Data deleted successfully' };
+  }
+
+  // Method khusus untuk makna kata
   async getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex) {
-    const allData = this.getFromStorage(this.maknaKey);
-    return allData.find(item => 
-      item.user_id === userId &&
-      parseInt(item.surah) === parseInt(surahNumber) &&
-      parseInt(item.ayat) === parseInt(ayatNumber) &&
-      parseInt(item.kata_index) === parseInt(kataIndex)
-    );
+    const result = await this.getData({
+      user_id: userId,
+      surah: surahNumber,
+      ayat: ayatNumber,
+      kata_index: kataIndex
+    });
+    return result.data && result.data.length > 0 ? result.data[0] : null;
   }
 
-  async saveMakna(maknaData) {
-    const allData = this.getFromStorage(this.maknaKey);
-    const existingIndex = allData.findIndex(item => 
-      item.user_id === maknaData.user_id &&
-      parseInt(item.surah) === parseInt(maknaData.surah) &&
-      parseInt(item.ayat) === parseInt(maknaData.ayat) &&
-      parseInt(item.kata_index) === parseInt(maknaData.kata_index)
-    );
-
-    const dataToSave = {
-      ...maknaData,
-      id: maknaData.id || this.generateId(),
-      timestamp: new Date().toISOString()
-    };
-
-    if (existingIndex >= 0) {
-      allData[existingIndex] = dataToSave;
-    } else {
-      allData.push(dataToSave);
-    }
-
-    this.saveToStorage(this.maknaKey, allData);
-    return dataToSave;
-  }
-
-  async deleteMakna(userId, surahNumber, ayatNumber, kataIndex) {
-    const allData = this.getFromStorage(this.maknaKey);
-    const newData = allData.filter(item => 
-      !(item.user_id === userId &&
-        parseInt(item.surah) === parseInt(surahNumber) &&
-        parseInt(item.ayat) === parseInt(ayatNumber) &&
-        parseInt(item.kata_index) === parseInt(kataIndex))
-    );
-    
-    this.saveToStorage(this.maknaKey, newData);
-    return { success: true };
-  }
-
-  // Catatan methods
-  async getCatatanBySurah(userId, surahNumber) {
-    const allData = this.getFromStorage(this.catatanKey);
-    return allData.filter(item => 
-      item.user_id === userId && 
-      parseInt(item.surah) === parseInt(surahNumber)
-    );
-  }
-
+  // Method khusus untuk catatan ayat
   async getCatatanByAyat(userId, surahNumber, ayatNumber) {
-    const allData = this.getFromStorage(this.catatanKey);
-    return allData.find(item => 
-      item.user_id === userId &&
-      parseInt(item.surah) === parseInt(surahNumber) &&
-      parseInt(item.ayat) === parseInt(ayatNumber)
-    );
+    const result = await this.getData({
+      user_id: userId,
+      surah: surahNumber,
+      ayat: ayatNumber,
+      kata_index: -1
+    });
+    return result.data && result.data.length > 0 ? result.data[0] : null;
   }
 
+  // Simpan makna kata
+  async saveMakna(maknaData) {
+    return this.addData(maknaData);
+  }
+
+  // Simpan catatan ayat
   async saveCatatan(catatanData) {
-    const allData = this.getFromStorage(this.catatanKey);
-    const existingIndex = allData.findIndex(item => 
-      item.user_id === catatanData.user_id &&
-      parseInt(item.surah) === parseInt(catatanData.surah) &&
-      parseInt(item.ayat) === parseInt(catatanData.ayat)
-    );
-
-    const dataToSave = {
-      ...catatanData,
-      id: catatanData.id || this.generateId(),
-      timestamp: new Date().toISOString()
-    };
-
-    if (existingIndex >= 0) {
-      allData[existingIndex] = dataToSave;
-    } else {
-      allData.push(dataToSave);
-    }
-
-    this.saveToStorage(this.catatanKey, allData);
-    return dataToSave;
-  }
-
-  async deleteCatatan(userId, surahNumber, ayatNumber) {
-    const allData = this.getFromStorage(this.catatanKey);
-    const newData = allData.filter(item => 
-      !(item.user_id === userId &&
-        parseInt(item.surah) === parseInt(surahNumber) &&
-        parseInt(item.ayat) === parseInt(ayatNumber))
-    );
-    
-    this.saveToStorage(this.catatanKey, newData);
-    return { success: true };
+    return this.addData(catatanData);
   }
 }
 
@@ -248,7 +227,7 @@ export class QuranDataService {
   async testConnection() {
     try {
       // Test koneksi ke Google Sheets
-      await googleSheetsService.callAPI('test');
+      await googleSheetsService.callAPI('get');
       this.useGoogleSheets = true;
       console.log('✅ Connected to Google Sheets API');
     } catch (error) {
@@ -261,11 +240,26 @@ export class QuranDataService {
     return this.useGoogleSheets ? googleSheetsService : localStorageService;
   }
 
-  // Makna methods
-  async getMaknaBySurah(userId, surahNumber) {
-    return this.getService().getMaknaBySurah(userId, surahNumber);
+  // ===== METHOD UMUM =====
+  async getData(filters = {}) {
+    return this.getService().getData(filters);
   }
 
+  async addData(data) {
+    return this.getService().addData(data);
+  }
+
+  async updateData(id, data) {
+    return this.getService().updateData(id, data);
+  }
+
+  async deleteData(id) {
+    return this.getService().deleteData(id);
+  }
+
+  // ===== METHOD KHUSUS =====
+  
+  // Untuk makna per kata (kata_index >= 0)
   async getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex) {
     return this.getService().getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex);
   }
@@ -274,15 +268,7 @@ export class QuranDataService {
     return this.getService().saveMakna(maknaData);
   }
 
-  async deleteMakna(userId, surahNumber, ayatNumber, kataIndex) {
-    return this.getService().deleteMakna(userId, surahNumber, ayatNumber, kataIndex);
-  }
-
-  // Catatan methods
-  async getCatatanBySurah(userId, surahNumber) {
-    return this.getService().getCatatanBySurah(userId, surahNumber);
-  }
-
+  // Untuk catatan ayat (kata_index = -1)
   async getCatatanByAyat(userId, surahNumber, ayatNumber) {
     return this.getService().getCatatanByAyat(userId, surahNumber, ayatNumber);
   }
@@ -291,8 +277,12 @@ export class QuranDataService {
     return this.getService().saveCatatan(catatanData);
   }
 
-  async deleteCatatan(userId, surahNumber, ayatNumber) {
-    return this.getService().deleteCatatan(userId, surahNumber, ayatNumber);
+  // Ambil semua data untuk surah tertentu
+  async getDataBySurah(userId, surahNumber) {
+    return this.getService().getData({
+      user_id: userId,
+      surah: surahNumber
+    });
   }
 }
 

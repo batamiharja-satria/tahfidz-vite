@@ -1,191 +1,158 @@
-// Template Google Apps Script untuk di-deploy
-// Salin kode ini ke Google Apps Script dan deploy sebagai web app
+// Quran App - Google Apps Script API
+// Hanya menggunakan satu sheet: MaknaData
 
-/**
- * Google Apps Script untuk Quran Ma'na App
- * Deploy sebagai web app dengan execute as: me, who has access: anyone
- */
-
-// Konfigurasi
 const CONFIG = {
-  SHEET_ID: 'YOUR_GOOGLE_SHEET_ID', // Ganti dengan ID Google Sheet Anda
-  SHEET_MAKNA: 'MaknaData',
-  SHEET_CATATAN: 'CatatanData'
+  SHEET_ID: '1hYIwGs6WTlmFt6-3tj3w90n-nHync42Amk9WKKaWT4I', // Ganti dengan ID spreadsheet Anda
+  SHEET_MAKNA: 'MaknaData'
 };
 
-// Inisialisasi spreadsheet
-function getSpreadsheet() {
-  return SpreadsheetApp.openById(CONFIG.SHEET_ID);
+function doGet(e) {
+  return handleRequest(e);
 }
 
 function doPost(e) {
+  return handleRequest(e);
+}
+
+function handleRequest(e) {
   try {
     const action = e.parameter.action;
-    const data = JSON.parse(e.parameter.data);
+    const data = e.parameter.data ? JSON.parse(e.parameter.data) : null;
     
     let result;
     
     switch(action) {
       case 'test':
-        result = { success: true, data: 'Google Sheets API is working' };
+        result = { success: true, message: "API is working!" };
         break;
-        
-      case 'getMaknaBySurah':
-        result = getMaknaBySurah(data.userId, data.surah);
+      case 'save':
+        result = saveData(data);
         break;
-        
-      case 'getMaknaByKata':
-        result = getMaknaByKata(data.userId, data.surah, data.ayat, data.kata_index);
+      case 'get':
+        result = getData(data);
         break;
-        
-      case 'saveMakna':
-        result = saveMakna(data);
+      case 'delete':
+        result = deleteData(data);
         break;
-        
-      case 'deleteMakna':
-        result = deleteMakna(data.userId, data.surah, data.ayat, data.kata_index);
-        break;
-        
-      case 'getCatatanBySurah':
-        result = getCatatanBySurah(data.userId, data.surah);
-        break;
-        
-      case 'getCatatanByAyat':
-        result = getCatatanByAyat(data.userId, data.surah, data.ayat);
-        break;
-        
-      case 'saveCatatan':
-        result = saveCatatan(data);
-        break;
-        
-      case 'deleteCatatan':
-        result = deleteCatatan(data.userId, data.surah, data.ayat);
-        break;
-        
       default:
-        result = { success: false, error: 'Unknown action' };
+        throw new Error('Action not supported');
     }
     
-    return ContentService
-      .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON)
-      .setHeaders({
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'Content-Type'
-      });
-      
+    return createResponse(result);
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: false,
-        error: error.toString()
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return createResponse({ error: error.message }, true);
   }
 }
 
-// Handle CORS preflight
-function doOptions() {
+// Helper functions
+function getSheet() {
+  const spreadsheet = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  let sheet = spreadsheet.getSheetByName(CONFIG.SHEET_MAKNA);
+  
+  // Buat sheet jika belum ada
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(CONFIG.SHEET_MAKNA);
+    // Buat header untuk semua data
+    sheet.getRange('A1:G1').setValues([[
+      'id', 'user_id', 'surah', 'ayat', 'arti', 'keterangan', 'timestamp'
+    ]]);
+  }
+  
+  return sheet;
+}
+
+function createResponse(data, isError = false) {
+  const response = {
+    success: !isError,
+    timestamp: new Date().toISOString(),
+    ...data
+  };
+  
+  // PERBAIKAN: setMimeType (bukan setMimetype)
   return ContentService
-    .createTextOutput()
+    .createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON)
     .setHeaders({
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type'
     });
 }
 
-// ===== FUNGSI UNTUK DATA MAKNA =====
-
-function getMaknaSheet() {
-  const ss = getSpreadsheet();
-  let sheet = ss.getSheetByName(CONFIG.SHEET_MAKNA);
-  
-  if (!sheet) {
-    sheet = ss.insertSheet(CONFIG.SHEET_MAKNA);
-    // Buat header
-    sheet.getRange('A1:G1').setValues([[
-      'id', 'user_id', 'surah', 'ayat', 'kata_index', 'kata_text', 'makna', 'timestamp'
-    ]]);
-  }
-  
-  return sheet;
-}
-
-function getMaknaBySurah(userId, surah) {
-  const sheet = getMaknaSheet();
+// CRUD Operations
+function getData(filters = {}) {
+  const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
   const headers = data[0];
   
-  const results = [];
+  let result = [];
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const rowData = {};
+    if (row[0] === '') continue;
     
+    const obj = {};
     headers.forEach((header, index) => {
-      rowData[header] = row[index];
+      obj[header] = row[index];
     });
     
-    if (rowData.user_id === userId && parseInt(rowData.surah) === parseInt(surah)) {
-      results.push(rowData);
+    // Filter berdasarkan parameter
+    let match = true;
+    
+    if (filters.user_id && obj.user_id !== filters.user_id) {
+      match = false;
+    }
+    
+    if (filters.surah && obj.surah != filters.surah) {
+      match = false;
+    }
+    
+    if (filters.ayat && obj.ayat != filters.ayat) {
+      match = false;
+    }
+    
+    if (match) {
+      result.push(obj);
     }
   }
   
-  return { success: true, data: results };
+  return { data: result };
 }
 
-function getMaknaByKata(userId, surah, ayat, kataIndex) {
-  const sheet = getMaknaSheet();
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
+function saveData(newData) {
+  const sheet = getSheet();
+  const allData = sheet.getDataRange().getValues();
+  const headers = allData[0];
   
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const rowData = {};
-    
-    headers.forEach((header, index) => {
-      rowData[header] = row[index];
-    });
-    
-    if (rowData.user_id === userId && 
-        parseInt(rowData.surah) === parseInt(surah) &&
-        parseInt(rowData.ayat) === parseInt(ayat) &&
-        parseInt(rowData.kata_index) === parseInt(kataIndex)) {
-      return { success: true, data: rowData };
-    }
-  }
-  
-  return { success: true, data: null };
-}
-
-function saveMakna(maknaData) {
-  const sheet = getMaknaSheet();
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  // Cari row yang sudah ada
+  // Cari data yang sudah ada
   let existingRow = -1;
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[1] === maknaData.user_id && 
-        parseInt(row[2]) === parseInt(maknaData.surah) &&
-        parseInt(row[3]) === parseInt(maknaData.ayat) &&
-        parseInt(row[4]) === parseInt(maknaData.kata_index)) {
+  for (let i = 1; i < allData.length; i++) {
+    const row = allData[i];
+    if (row[1] === newData.user_id && 
+        row[2] == newData.surah && 
+        row[3] == newData.ayat) {
       existingRow = i + 1;
       break;
     }
   }
   
+  // Generate ID jika tidak ada
+  if (!newData.id) {
+    newData.id = Utilities.getUuid();
+  }
+  
+  // Add timestamp
+  if (!newData.timestamp) {
+    newData.timestamp = new Date().toISOString();
+  }
+  
   const rowData = [
-    maknaData.id || Utilities.getUuid(),
-    maknaData.user_id,
-    parseInt(maknaData.surah),
-    parseInt(maknaData.ayat),
-    parseInt(maknaData.kata_index),
-    maknaData.kata_text,
-    maknaData.makna,
-    new Date().toISOString()
+    newData.id,
+    newData.user_id,
+    newData.surah,
+    newData.ayat,
+    newData.arti || '',
+    newData.keterangan || '',
+    newData.timestamp
   ];
   
   if (existingRow > 0) {
@@ -196,137 +163,24 @@ function saveMakna(maknaData) {
     sheet.appendRow(rowData);
   }
   
-  return { success: true, data: { ...maknaData, id: rowData[0] } };
+  return { 
+    message: 'Data saved successfully',
+    id: newData.id,
+    data: newData
+  };
 }
 
-function deleteMakna(userId, surah, ayat, kataIndex) {
-  const sheet = getMaknaSheet();
-  const data = sheet.getDataRange().getValues();
+function deleteData(data) {
+  const sheet = getSheet();
+  const allData = sheet.getDataRange().getValues();
   
-  for (let i = data.length - 1; i >= 1; i--) {
-    const row = data[i];
-    if (row[1] === userId && 
-        parseInt(row[2]) === parseInt(surah) &&
-        parseInt(row[3]) === parseInt(ayat) &&
-        parseInt(row[4]) === parseInt(kataIndex)) {
+  for (let i = allData.length - 1; i >= 1; i--) {
+    const row = allData[i];
+    if (row[0] === data.id) {
       sheet.deleteRow(i + 1);
+      return { message: 'Data deleted successfully' };
     }
   }
   
-  return { success: true, data: 'Deleted successfully' };
-}
-
-// ===== FUNGSI UNTUK DATA CATATAN =====
-
-function getCatatanSheet() {
-  const ss = getSpreadsheet();
-  let sheet = ss.getSheetByName(CONFIG.SHEET_CATATAN);
-  
-  if (!sheet) {
-    sheet = ss.insertSheet(CONFIG.SHEET_CATATAN);
-    // Buat header
-    sheet.getRange('A1:E1').setValues([[
-      'id', 'user_id', 'surah', 'ayat', 'catatan', 'timestamp'
-    ]]);
-  }
-  
-  return sheet;
-}
-
-function getCatatanBySurah(userId, surah) {
-  const sheet = getCatatanSheet();
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  const results = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const rowData = {};
-    
-    headers.forEach((header, index) => {
-      rowData[header] = row[index];
-    });
-    
-    if (rowData.user_id === userId && parseInt(rowData.surah) === parseInt(surah)) {
-      results.push(rowData);
-    }
-  }
-  
-  return { success: true, data: results };
-}
-
-function getCatatanByAyat(userId, surah, ayat) {
-  const sheet = getCatatanSheet();
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const rowData = {};
-    
-    headers.forEach((header, index) => {
-      rowData[header] = row[index];
-    });
-    
-    if (rowData.user_id === userId && 
-        parseInt(rowData.surah) === parseInt(surah) &&
-        parseInt(rowData.ayat) === parseInt(ayat)) {
-      return { success: true, data: rowData };
-    }
-  }
-  
-  return { success: true, data: null };
-}
-
-function saveCatatan(catatanData) {
-  const sheet = getCatatanSheet();
-  const data = sheet.getDataRange().getValues();
-  const headers = data[0];
-  
-  // Cari row yang sudah ada
-  let existingRow = -1;
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[1] === catatanData.user_id && 
-        parseInt(row[2]) === parseInt(catatanData.surah) &&
-        parseInt(row[3]) === parseInt(catatanData.ayat)) {
-      existingRow = i + 1;
-      break;
-    }
-  }
-  
-  const rowData = [
-    catatanData.id || Utilities.getUuid(),
-    catatanData.user_id,
-    parseInt(catatanData.surah),
-    parseInt(catatanData.ayat),
-    catatanData.catatan,
-    new Date().toISOString()
-  ];
-  
-  if (existingRow > 0) {
-    // Update existing row
-    sheet.getRange(existingRow, 1, 1, rowData.length).setValues([rowData]);
-  } else {
-    // Tambah row baru
-    sheet.appendRow(rowData);
-  }
-  
-  return { success: true, data: { ...catatanData, id: rowData[0] } };
-}
-
-function deleteCatatan(userId, surah, ayat) {
-  const sheet = getCatatanSheet();
-  const data = sheet.getDataRange().getValues();
-  
-  for (let i = data.length - 1; i >= 1; i--) {
-    const row = data[i];
-    if (row[1] === userId && 
-        parseInt(row[2]) === parseInt(surah) &&
-        parseInt(row[3]) === parseInt(ayat)) {
-      sheet.deleteRow(i + 1);
-    }
-  }
-  
-  return { success: true, data: 'Deleted successfully' };
+  throw new Error('Data not found');
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert, Badge } from 'react-bootstrap';
+import { quranDataService } from '../utils/googleSheetsService';
 
 const ModalMakna = ({ 
   show, 
@@ -17,21 +18,37 @@ const ModalMakna = ({
   useEffect(() => {
     if (show && kataData) {
       console.log('ModalMakna dibuka untuk:', kataData);
-      console.log('Existing data:', existingData);
       
-      if (existingData) {
-        // Jika sudah ada data, tampilkan dan mode read-only
-        setInputText(existingData.makna || '');
-        setSavedData(existingData);
-        setIsEditing(false);
-      } else {
-        // Jika belum ada data, mode create
-        setInputText('');
-        setSavedData(null);
-        setIsEditing(true);
-      }
+      // Load existing data
+      const loadData = async () => {
+        try {
+          const result = await quranDataService.getMaknaByKata(
+            kataData.userId,
+            kataData.surahNumber, 
+            kataData.ayatNumber,
+            kataData.kataIndex
+          );
+          
+          if (result) {
+            setInputText(result.makna || '');
+            setSavedData(result);
+            setIsEditing(false);
+          } else {
+            setInputText('');
+            setSavedData(null);
+            setIsEditing(true);
+          }
+        } catch (error) {
+          console.error('Error loading makna:', error);
+          setInputText('');
+          setSavedData(null);
+          setIsEditing(true);
+        }
+      };
+
+      loadData();
     }
-  }, [show, kataData, existingData]);
+  }, [show, kataData]);
 
   const handleSave = async () => {
     if (inputText.trim()) {
@@ -39,28 +56,38 @@ const ModalMakna = ({
       
       try {
         const dataToSave = {
-          id: savedData?.id || `kata_${Date.now()}`,
-          user_id: kataData.userId, // Dari props
+          user_id: kataData.userId,
           surah: kataData.surahNumber,
           ayat: kataData.ayatNumber,
-          kata_index: kataData.kataIndex,
-          kata_text: kataData.kataText,
-          makna: inputText.trim(),
-          timestamp: new Date().toISOString()
+          kata_index: kataData.kataIndex, // Indeks kata sebenarnya
+          kata_text: kataData.kataText, // Teks kata
+          makna: inputText.trim(), // Disimpan di sini
+          keterangan: '', // Kosong untuk makna kata
         };
 
-        // TODO: Integrasi dengan Google Sheets API
-        console.log('Menyimpan data ke Google Sheets:', dataToSave);
+        let result;
+        if (savedData) {
+          // Update existing
+          result = await quranDataService.updateData(savedData.id, dataToSave);
+        } else {
+          // Add new
+          result = await quranDataService.saveMakna(dataToSave);
+        }
         
-        // Simulasi API call
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Reload data untuk mendapatkan ID jika baru
+        const updatedData = await quranDataService.getMaknaByKata(
+          kataData.userId,
+          kataData.surahNumber, 
+          kataData.ayatNumber,
+          kataData.kataIndex
+        );
         
-        setSavedData(dataToSave);
+        setSavedData(updatedData);
         setIsEditing(false);
         
         // Panggil callback ke parent untuk update state
         if (onSave) {
-          onSave(dataToSave);
+          onSave(updatedData);
         }
         
       } catch (error) {
@@ -80,10 +107,9 @@ const ModalMakna = ({
     if (window.confirm('Hapus makna untuk kata ini?')) {
       setIsLoading(true);
       try {
-        // TODO: Delete dari Google Sheets
-        console.log('Menghapus data:', savedData);
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
+        if (savedData && savedData.id) {
+          await quranDataService.deleteData(savedData.id);
+        }
         
         setInputText('');
         setSavedData(null);
