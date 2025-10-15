@@ -16,30 +16,49 @@ const ModalMakna = ({
 
   // Reset state ketika modal dibuka dengan data baru
   useEffect(() => {
-    if (show && kataData) {
-      console.log('ModalMakna dibuka untuk:', kataData);
-      setError('');
-      
-      // Load from cache - INSTANT
-      const cachedData = cacheService.getMakna(
-        kataData.userId,
-        kataData.surahNumber, 
-        kataData.ayatNumber,
-        kataData.kataIndex
-      );
-      
-      console.log('Data dari cache:', cachedData);
-      
-      if (cachedData) {
-        setInputText(cachedData.makna || '');
-        setSavedData(cachedData);
-        setIsEditing(false);
-      } else {
-        setInputText('');
-        setSavedData(null);
-        setIsEditing(true);
+    let isMounted = true;
+
+    const loadData = async () => {
+      if (show && kataData) {
+        console.log('ModalMakna dibuka untuk:', kataData);
+        setError('');
+        
+        try {
+          // Load from IndexedDB - ASYNC
+          const cachedData = await cacheService.getMakna(
+            kataData.userId,
+            kataData.surahNumber, 
+            kataData.ayatNumber,
+            kataData.kataIndex
+          );
+          
+          console.log('Data dari IndexedDB:', cachedData);
+          
+          if (isMounted) {
+            if (cachedData) {
+              setInputText(cachedData.makna || '');
+              setSavedData(cachedData);
+              setIsEditing(false);
+            } else {
+              setInputText('');
+              setSavedData(null);
+              setIsEditing(true);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading makna from IndexedDB:', error);
+          if (isMounted) {
+            setError('Gagal memuat makna dari cache');
+          }
+        }
       }
-    }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [show, kataData]);
 
   const handleSave = async () => {
@@ -63,10 +82,10 @@ const ModalMakna = ({
         timestamp: new Date().toISOString()
       };
 
-      console.log('Saving to cache:', dataToSave);
+      console.log('Saving to IndexedDB:', dataToSave);
 
-      // Simpan ke cache - INSTANT
-      const savedCacheData = cacheService.setMakna(
+      // Simpan ke IndexedDB - ASYNC
+      const savedCacheData = await cacheService.setMakna(
         kataData.userId,
         kataData.surahNumber,
         kataData.ayatNumber,
@@ -74,13 +93,12 @@ const ModalMakna = ({
         dataToSave
       );
 
-      setSavedData(savedCacheData);
-      setIsEditing(false);
-      
-      // Panggil callback ke parent untuk update tampilan
       if (onSave) {
         onSave(savedCacheData);
       }
+
+      setSavedData(savedCacheData);
+      setIsEditing(false);
       
     } catch (error) {
       console.error('Error saving makna:', error);
@@ -102,8 +120,8 @@ const ModalMakna = ({
     setError('');
     
     try {
-      // Hapus dari cache - INSTANT
-      cacheService.deleteMakna(
+      // Hapus dari IndexedDB - ASYNC
+      await cacheService.deleteMakna(
         kataData.userId,
         kataData.surahNumber,
         kataData.ayatNumber,
@@ -176,7 +194,7 @@ const ModalMakna = ({
             
             {savedData && (
               <Badge bg="success" className="ms-2">
-                ✅ Tersimpan di Cache
+                ✅ Tersimpan di IndexedDB
               </Badge>
             )}
           </div>
@@ -202,7 +220,7 @@ const ModalMakna = ({
             />
             <Form.Text className="text-muted">
               {isEditing 
-                ? "Ketik makna kata kemudian klik Simpan (disimpan di cache lokal)" 
+                ? "Ketik makna kata kemudian klik Simpan (disimpan di IndexedDB)" 
                 : "Klik tombol Edit untuk mengubah makna"}
             </Form.Text>
           </Form.Group>
@@ -213,7 +231,7 @@ const ModalMakna = ({
             <div className="spinner-border text-success" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            <p className="text-muted mt-2">Menyimpan ke cache...</p>
+            <p className="text-muted mt-2">Menyimpan ke IndexedDB...</p>
           </div>
         )}
       </Modal.Body>
@@ -255,7 +273,7 @@ const ModalMakna = ({
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan ke Cache'
+                  '💾 Simpan ke IndexedDB'
                 )}
               </Button>
             ) : (

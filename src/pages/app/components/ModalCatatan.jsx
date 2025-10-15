@@ -16,29 +16,48 @@ const ModalCatatan = ({
 
   // Reset state ketika modal dibuka dengan data baru
   useEffect(() => {
-    if (show && ayatData) {
-      console.log('ModalCatatan dibuka untuk:', ayatData);
-      setError('');
-      
-      // Load from cache - INSTANT
-      const cachedData = cacheService.getCatatan(
-        ayatData.userId,
-        ayatData.surahNumber, 
-        ayatData.ayatNumber
-      );
-      
-      console.log('Data catatan dari cache:', cachedData);
-      
-      if (cachedData) {
-        setInputText(cachedData.keterangan || '');
-        setSavedData(cachedData);
-        setIsEditing(false);
-      } else {
-        setInputText('');
-        setSavedData(null);
-        setIsEditing(true);
+    let isMounted = true;
+
+    const loadData = async () => {
+      if (show && ayatData) {
+        console.log('ModalCatatan dibuka untuk:', ayatData);
+        setError('');
+        
+        try {
+          // Load from IndexedDB - ASYNC
+          const cachedData = await cacheService.getCatatan(
+            ayatData.userId,
+            ayatData.surahNumber, 
+            ayatData.ayatNumber
+          );
+          
+          console.log('Data catatan dari IndexedDB:', cachedData);
+          
+          if (isMounted) {
+            if (cachedData) {
+              setInputText(cachedData.keterangan || '');
+              setSavedData(cachedData);
+              setIsEditing(false);
+            } else {
+              setInputText('');
+              setSavedData(null);
+              setIsEditing(true);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading catatan from IndexedDB:', error);
+          if (isMounted) {
+            setError('Gagal memuat catatan dari cache');
+          }
+        }
       }
-    }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [show, ayatData]);
 
   const handleSave = async () => {
@@ -62,23 +81,22 @@ const ModalCatatan = ({
         timestamp: new Date().toISOString()
       };
 
-      console.log('Saving catatan to cache:', dataToSave);
+      console.log('Saving catatan to IndexedDB:', dataToSave);
 
-      // Simpan ke cache - INSTANT
-      const savedCacheData = cacheService.setCatatan(
+      // Simpan ke IndexedDB - ASYNC
+      const savedCacheData = await cacheService.setCatatan(
         ayatData.userId,
         ayatData.surahNumber,
         ayatData.ayatNumber,
         dataToSave
       );
 
-      setSavedData(savedCacheData);
-      setIsEditing(false);
-      
-      // Panggil callback ke parent untuk update tampilan
       if (onSave) {
         onSave(savedCacheData);
       }
+
+      setSavedData(savedCacheData);
+      setIsEditing(false);
       
     } catch (error) {
       console.error('Error saving catatan:', error);
@@ -100,8 +118,8 @@ const ModalCatatan = ({
     setError('');
     
     try {
-      // Hapus dari cache - INSTANT
-      cacheService.deleteCatatan(
+      // Hapus dari IndexedDB - ASYNC
+      await cacheService.deleteCatatan(
         ayatData.userId,
         ayatData.surahNumber,
         ayatData.ayatNumber
@@ -172,7 +190,7 @@ const ModalCatatan = ({
             />
             <Form.Text className="text-muted">
               {isEditing 
-                ? "Ketik catatan Anda kemudian klik Simpan (disimpan di cache lokal)" 
+                ? "Ketik catatan Anda kemudian klik Simpan (disimpan di IndexedDB)" 
                 : "Klik tombol Edit untuk mengubah catatan"}
             </Form.Text>
           </Form.Group>
@@ -183,7 +201,7 @@ const ModalCatatan = ({
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            <p className="text-muted mt-2">Menyimpan ke cache...</p>
+            <p className="text-muted mt-2">Menyimpan ke IndexedDB...</p>
           </div>
         )}
       </Modal.Body>
@@ -225,7 +243,7 @@ const ModalCatatan = ({
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan ke Cache'
+                  '💾 Simpan ke IndexedDB'
                 )}
               </Button>
             ) : (

@@ -100,42 +100,49 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     }
   }, [nomor, userStatus]);
 
-  // LOAD DATA DARI CACHE
+  // LOAD DATA DARI INDEXEDDB
   useEffect(() => {
-    if (!isSuratAktif || !session?.user?.id) return;
+    let isMounted = true;
 
-    const userId = session.user.id;
-    
-    // Load from cache - INSTANT
-    const allMakna = cacheService.getAllMakna();
-    const allCatatan = cacheService.getAllCatatan();
-    
-    // Filter hanya untuk user ini
-    const userMakna = Object.keys(allMakna)
-      .filter(key => key.startsWith(userId))
-      .reduce((obj, key) => {
-        obj[key] = allMakna[key];
-        return obj;
-      }, {});
+    const loadCacheData = async () => {
+      if (!isSuratAktif || !session?.user?.id) return;
 
-    const userCatatan = Object.keys(allCatatan)
-      .filter(key => key.startsWith(userId))
-      .reduce((obj, key) => {
-        obj[key] = allCatatan[key];
-        return obj;
-      }, {});
+      const userId = session.user.id;
+      
+      try {
+        // Load from IndexedDB - ASYNC
+        const [userMakna, userCatatan] = await Promise.all([
+          cacheService.getAllMaknaByUser(userId),
+          cacheService.getAllCatatanByUser(userId)
+        ]);
 
-    setMaknaStorage(userMakna);
-    setCatatanStorage(userCatatan);
-    
-    // Update cache stats
-    updateCacheStats();
+        if (isMounted) {
+          setMaknaStorage(userMakna);
+          setCatatanStorage(userCatatan);
+        }
+        
+        // Update cache stats
+        await updateCacheStats();
+      } catch (error) {
+        console.error('Error loading cache data from IndexedDB:', error);
+      }
+    };
+
+    loadCacheData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isSuratAktif, session]);
 
   // UPDATE CACHE STATS
-  const updateCacheStats = () => {
-    const stats = cacheService.getStats();
-    setCacheStats(stats);
+  const updateCacheStats = async () => {
+    try {
+      const stats = await cacheService.getStats();
+      setCacheStats(stats);
+    } catch (error) {
+      console.error('Error updating cache stats:', error);
+    }
   };
 
   // SIMPAN SCROLL POSITION
@@ -192,24 +199,28 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
   };
 
   // FUNGSI: Handle save dari modal makna
-  const handleSaveMakna = (savedData) => {
-    // Update local state untuk menampilkan perubahan
-    if (savedData) {
-      const key = `${savedData.user_id}_${savedData.surah}_${savedData.ayat}_${savedData.kata_index}`;
-      setMaknaStorage(prev => ({
-        ...prev,
-        [key]: savedData
-      }));
-    } else {
-      // Jika dihapus
-      const key = `${selectedKata.userId}_${selectedKata.surahNumber}_${selectedKata.ayatNumber}_${selectedKata.kataIndex}`;
-      setMaknaStorage(prev => {
-        const newStorage = { ...prev };
-        delete newStorage[key];
-        return newStorage;
-      });
+  const handleSaveMakna = async (savedData) => {
+    try {
+      // Update local state untuk menampilkan perubahan
+      if (savedData) {
+        const key = `${savedData.user_id}_${savedData.surah}_${savedData.ayat}_${savedData.kata_index}`;
+        setMaknaStorage(prev => ({
+          ...prev,
+          [key]: savedData
+        }));
+      } else {
+        // Jika dihapus
+        const key = `${selectedKata.userId}_${selectedKata.surahNumber}_${selectedKata.ayatNumber}_${selectedKata.kataIndex}`;
+        setMaknaStorage(prev => {
+          const newStorage = { ...prev };
+          delete newStorage[key];
+          return newStorage;
+        });
+      }
+      await updateCacheStats();
+    } catch (error) {
+      console.error('Error updating makna storage:', error);
     }
-    updateCacheStats();
   };
 
   // FUNGSI: Handle klik pada icon catatan ayat
@@ -233,24 +244,28 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
   };
 
   // FUNGSI: Handle save dari modal catatan
-  const handleSaveCatatan = (savedData) => {
-    // Update local state untuk menampilkan perubahan
-    if (savedData) {
-      const key = `${savedData.user_id}_${savedData.surah}_${savedData.ayat}`;
-      setCatatanStorage(prev => ({
-        ...prev,
-        [key]: savedData
-      }));
-    } else {
-      // Jika dihapus
-      const key = `${selectedAyat.userId}_${selectedAyat.surahNumber}_${selectedAyat.ayatNumber}`;
-      setCatatanStorage(prev => {
-        const newStorage = { ...prev };
-        delete newStorage[key];
-        return newStorage;
-      });
+  const handleSaveCatatan = async (savedData) => {
+    try {
+      // Update local state untuk menampilkan perubahan
+      if (savedData) {
+        const key = `${savedData.user_id}_${savedData.surah}_${savedData.ayat}`;
+        setCatatanStorage(prev => ({
+          ...prev,
+          [key]: savedData
+        }));
+      } else {
+        // Jika dihapus
+        const key = `${selectedAyat.userId}_${selectedAyat.surahNumber}_${selectedAyat.ayatNumber}`;
+        setCatatanStorage(prev => {
+          const newStorage = { ...prev };
+          delete newStorage[key];
+          return newStorage;
+        });
+      }
+      await updateCacheStats();
+    } catch (error) {
+      console.error('Error updating catatan storage:', error);
     }
-    updateCacheStats();
   };
 
   // FUNGSI: Simpan semua data ke database
@@ -264,7 +279,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
 
     try {
       const userId = session.user.id;
-      const exportData = cacheService.exportForDatabase();
+      const exportData = await cacheService.exportForDatabase();
       
       console.log('Saving to database:', exportData);
 
@@ -272,8 +287,8 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
       
       if (result) {
         // Mark as saved
-        cacheService.markAllAsSaved();
-        updateCacheStats();
+        await cacheService.markAllAsSaved();
+        await updateCacheStats();
         
         setSyncStatus({ 
           loading: false, 
@@ -329,13 +344,18 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
           }
         });
 
-        // Import to cache
-        cacheService.importFromDatabase(processedData);
+        // Import to IndexedDB
+        await cacheService.importFromDatabase(processedData);
         
         // Update local state
-        setMaknaStorage(processedData.makna);
-        setCatatanStorage(processedData.catatan);
-        updateCacheStats();
+        const [userMakna, userCatatan] = await Promise.all([
+          cacheService.getAllMaknaByUser(userId),
+          cacheService.getAllCatatanByUser(userId)
+        ]);
+
+        setMaknaStorage(userMakna);
+        setCatatanStorage(userCatatan);
+        await updateCacheStats();
         
         setSyncStatus({ 
           loading: false, 
@@ -438,7 +458,21 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
   };
 
   const suratInfo = getSuratInfo();
-  const hasUnsavedChanges = cacheService.hasUnsavedChanges();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Check for unsaved changes
+  useEffect(() => {
+    const checkUnsavedChanges = async () => {
+      try {
+        const unsaved = await cacheService.hasUnsavedChanges();
+        setHasUnsavedChanges(unsaved);
+      } catch (error) {
+        console.error('Error checking unsaved changes:', error);
+      }
+    };
+
+    checkUnsavedChanges();
+  }, [maknaStorage, catatanStorage]);
 
   return (
     <div className="d-flex flex-column vw-100 vh-100">
@@ -449,7 +483,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
             <strong>Fitur 3: Tafsir Kata</strong>
             {cacheStats && (
               <small className="text-muted ms-2">
-                (Cache: {cacheStats.totalMakna || 0} makna, {cacheStats.totalCatatan || 0} catatan)
+                (IndexedDB: {cacheStats.totalMakna || 0} makna, {cacheStats.totalCatatan || 0} catatan)
                 {hasUnsavedChanges && (
                   <Badge bg="warning" className="ms-2">
                     Ada Perubahan Belum Disimpan

@@ -1,40 +1,21 @@
-// utils/cacheService.js
-
-const CACHE_KEYS = {
-  MAKNA_DATA: 'quran_makna_data',
-  CATATAN_DATA: 'quran_catatan_data',
-  LAST_SYNC: 'quran_last_sync'
-};
+import { indexedDBService } from './indexedDBService';
 
 class CacheService {
   constructor() {
     this.isInitialized = false;
-    this.cache = {
-      makna: {},
-      catatan: {}
-    };
     this.init();
   }
 
-  init() {
+  async init() {
     if (this.isInitialized) return;
     
     try {
-      // Load from localStorage
-      const maknaData = localStorage.getItem(CACHE_KEYS.MAKNA_DATA);
-      const catatanData = localStorage.getItem(CACHE_KEYS.CATATAN_DATA);
-      
-      this.cache.makna = maknaData ? JSON.parse(maknaData) : {};
-      this.cache.catatan = catatanData ? JSON.parse(catatanData) : {};
+      await indexedDBService.init();
       this.isInitialized = true;
       
-      console.log('Cache initialized:', {
-        maknaCount: Object.keys(this.cache.makna).length,
-        catatanCount: Object.keys(this.cache.catatan).length
-      });
+      console.log('CacheService initialized with IndexedDB');
     } catch (error) {
-      console.error('Error initializing cache:', error);
-      this.clear();
+      console.error('Error initializing CacheService:', error);
     }
   }
 
@@ -46,70 +27,90 @@ class CacheService {
     return `${userId}_${surah}_${ayat}`;
   }
 
-  // MAKNA METHODS
-  getMakna(userId, surah, ayat, kataIndex) {
+  // MAKNA METHODS - All are async now
+  async getMakna(userId, surah, ayat, kataIndex) {
+    await this.init();
     const key = this.generateKey(userId, surah, ayat, kataIndex);
-    return this.cache.makna[key] || null;
+    return await indexedDBService.get('makna', key);
   }
 
-  setMakna(userId, surah, ayat, kataIndex, data) {
+  async setMakna(userId, surah, ayat, kataIndex, data) {
+    await this.init();
     const key = this.generateKey(userId, surah, ayat, kataIndex);
-    this.cache.makna[key] = {
+    const dataToStore = {
       ...data,
       _cachedAt: new Date().toISOString(),
-      _isDirty: true // Mark as unsaved
+      _isDirty: true
     };
-    this.saveToStorage();
-    return this.cache.makna[key];
+    return await indexedDBService.set('makna', key, dataToStore);
   }
 
-  deleteMakna(userId, surah, ayat, kataIndex) {
+  async deleteMakna(userId, surah, ayat, kataIndex) {
+    await this.init();
     const key = this.generateKey(userId, surah, ayat, kataIndex);
-    delete this.cache.makna[key];
-    this.saveToStorage();
+    return await indexedDBService.delete('makna', key);
   }
 
-  // CATATAN METHODS
-  getCatatan(userId, surah, ayat) {
+  // CATATAN METHODS - All are async now
+  async getCatatan(userId, surah, ayat) {
+    await this.init();
     const key = this.generateKey(userId, surah, ayat);
-    return this.cache.catatan[key] || null;
+    return await indexedDBService.get('catatan', key);
   }
 
-  setCatatan(userId, surah, ayat, data) {
+  async setCatatan(userId, surah, ayat, data) {
+    await this.init();
     const key = this.generateKey(userId, surah, ayat);
-    this.cache.catatan[key] = {
+    const dataToStore = {
       ...data,
       _cachedAt: new Date().toISOString(),
-      _isDirty: true // Mark as unsaved
+      _isDirty: true
     };
-    this.saveToStorage();
-    return this.cache.catatan[key];
+    return await indexedDBService.set('catatan', key, dataToStore);
   }
 
-  deleteCatatan(userId, surah, ayat) {
+  async deleteCatatan(userId, surah, ayat) {
+    await this.init();
     const key = this.generateKey(userId, surah, ayat);
-    delete this.cache.catatan[key];
-    this.saveToStorage();
+    return await indexedDBService.delete('catatan', key);
   }
 
   // BATCH OPERATIONS
-  getAllMakna() {
-    return this.cache.makna;
+  async getAllMakna() {
+    await this.init();
+    return await indexedDBService.getAll('makna');
   }
 
-  getAllCatatan() {
-    return this.cache.catatan;
+  async getAllCatatan() {
+    await this.init();
+    return await indexedDBService.getAll('catatan');
   }
 
-  getUnsavedChanges() {
-    const unsavedMakna = Object.entries(this.cache.makna)
+  async getAllMaknaByUser(userId) {
+    await this.init();
+    return await indexedDBService.getAllByUser('makna', userId);
+  }
+
+  async getAllCatatanByUser(userId) {
+    await this.init();
+    return await indexedDBService.getAllByUser('catatan', userId);
+  }
+
+  async getUnsavedChanges() {
+    await this.init();
+    const [allMakna, allCatatan] = await Promise.all([
+      this.getAllMakna(),
+      this.getAllCatatan()
+    ]);
+
+    const unsavedMakna = Object.entries(allMakna)
       .filter(([key, value]) => value._isDirty)
       .reduce((acc, [key, value]) => {
         acc[key] = value;
         return acc;
       }, {});
 
-    const unsavedCatatan = Object.entries(this.cache.catatan)
+    const unsavedCatatan = Object.entries(allCatatan)
       .filter(([key, value]) => value._isDirty)
       .reduce((acc, [key, value]) => {
         acc[key] = value;
@@ -122,45 +123,53 @@ class CacheService {
     };
   }
 
-  markAllAsSaved() {
-    // Mark all as saved (after successful sync)
-    Object.keys(this.cache.makna).forEach(key => {
-      if (this.cache.makna[key]._isDirty) {
-        this.cache.makna[key]._isDirty = false;
+  async markAllAsSaved() {
+    await this.init();
+    const [allMakna, allCatatan] = await Promise.all([
+      this.getAllMakna(),
+      this.getAllCatatan()
+    ]);
+
+    // Update all dirty items to mark as saved
+    const updatePromises = [];
+
+    Object.keys(allMakna).forEach(key => {
+      if (allMakna[key]._isDirty) {
+        const updated = { ...allMakna[key], _isDirty: false };
+        updatePromises.push(indexedDBService.set('makna', key, updated));
       }
     });
-    
-    Object.keys(this.cache.catatan).forEach(key => {
-      if (this.cache.catatan[key]._isDirty) {
-        this.cache.catatan[key]._isDirty = false;
+
+    Object.keys(allCatatan).forEach(key => {
+      if (allCatatan[key]._isDirty) {
+        const updated = { ...allCatatan[key], _isDirty: false };
+        updatePromises.push(indexedDBService.set('catatan', key, updated));
       }
     });
-    
-    this.saveToStorage();
-    localStorage.setItem(CACHE_KEYS.LAST_SYNC, new Date().toISOString());
+
+    await Promise.all(updatePromises);
+    await indexedDBService.setMetadata('last_sync', new Date().toISOString());
   }
 
   // IMPORT/EXPORT
-  importFromDatabase(data) {
-    if (data.makna) {
-      this.cache.makna = data.makna;
-    }
-    if (data.catatan) {
-      this.cache.catatan = data.catatan;
-    }
-    this.markAllAsSaved();
-    this.saveToStorage();
+  async importFromDatabase(data) {
+    await this.init();
+    await indexedDBService.importAllData(data);
+    await this.markAllAsSaved();
   }
 
-  exportForDatabase() {
+  async exportForDatabase() {
+    await this.init();
+    const allData = await indexedDBService.exportAllData();
+
     // Remove cache metadata before sending to database
-    const cleanMakna = Object.entries(this.cache.makna).reduce((acc, [key, value]) => {
+    const cleanMakna = Object.entries(allData.makna).reduce((acc, [key, value]) => {
       const { _cachedAt, _isDirty, ...cleanData } = value;
       acc[key] = cleanData;
       return acc;
     }, {});
 
-    const cleanCatatan = Object.entries(this.cache.catatan).reduce((acc, [key, value]) => {
+    const cleanCatatan = Object.entries(allData.catatan).reduce((acc, [key, value]) => {
       const { _cachedAt, _isDirty, ...cleanData } = value;
       acc[key] = cleanData;
       return acc;
@@ -173,35 +182,45 @@ class CacheService {
   }
 
   // UTILITIES
-  hasUnsavedChanges() {
-    const unsaved = this.getUnsavedChanges();
+  async hasUnsavedChanges() {
+    await this.init();
+    const unsaved = await this.getUnsavedChanges();
     return Object.keys(unsaved.makna).length > 0 || Object.keys(unsaved.catatan).length > 0;
   }
 
-  getStats() {
+  async getStats() {
+    await this.init();
+    const stats = await indexedDBService.getStats();
+    const unsaved = await this.getUnsavedChanges();
+
     return {
-      totalMakna: Object.keys(this.cache.makna).length,
-      totalCatatan: Object.keys(this.cache.catatan).length,
-      unsavedMakna: Object.keys(this.getUnsavedChanges().makna).length,
-      unsavedCatatan: Object.keys(this.getUnsavedChanges().catatan).length,
-      lastSync: localStorage.getItem(CACHE_KEYS.LAST_SYNC)
+      ...stats,
+      unsavedMakna: Object.keys(unsaved.makna).length,
+      unsavedCatatan: Object.keys(unsaved.catatan).length
     };
   }
 
-  clear() {
-    this.cache = { makna: {}, catatan: {} };
-    localStorage.removeItem(CACHE_KEYS.MAKNA_DATA);
-    localStorage.removeItem(CACHE_KEYS.CATATAN_DATA);
-    localStorage.removeItem(CACHE_KEYS.LAST_SYNC);
-    this.isInitialized = true;
+  async clear() {
+    await this.init();
+    await indexedDBService.clear('makna');
+    await indexedDBService.clear('catatan');
+    console.log('Cache cleared successfully');
   }
 
-  saveToStorage() {
-    try {
-      localStorage.setItem(CACHE_KEYS.MAKNA_DATA, JSON.stringify(this.cache.makna));
-      localStorage.setItem(CACHE_KEYS.CATATAN_DATA, JSON.stringify(this.cache.catatan));
-    } catch (error) {
-      console.error('Error saving cache to storage:', error);
+  // Backup to localStorage (optional, for migration)
+  async backupToLocalStorage() {
+    const allData = await indexedDBService.exportAllData();
+    localStorage.setItem('quran_cache_backup', JSON.stringify(allData));
+    console.log('Backup created in localStorage');
+  }
+
+  // Restore from localStorage (optional, for migration)
+  async restoreFromLocalStorage() {
+    const backup = localStorage.getItem('quran_cache_backup');
+    if (backup) {
+      const data = JSON.parse(backup);
+      await indexedDBService.importAllData(data);
+      console.log('Restored from localStorage backup');
     }
   }
 }
