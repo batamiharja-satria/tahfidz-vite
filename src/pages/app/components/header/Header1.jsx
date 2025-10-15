@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, forwardRef } from "react";
 import { List, Search, X } from "react-bootstrap-icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import suratConfig from "../../data/SuratConfig";
-// HAPUS import supabase - tidak perlu karena kita pakai userStatus dari props
 
 const Header1 = forwardRef(({ toggleSidebar, session, userStatus, onSearchClick }, ref) => {
   const location = useLocation();
@@ -15,9 +14,10 @@ const Header1 = forwardRef(({ toggleSidebar, session, userStatus, onSearchClick 
   const [isSearchActive, setIsSearchActive] = useState(false);
   const searchInputRef = useRef(null);
 
-  // ✅ PERBAIKAN: Deteksi fitur aktif
+  // ✅ PERBAIKAN: Deteksi SEMUA fitur aktif
   const isFitur1 = currentPath.includes('/fitur1');
   const isFitur2 = currentPath.includes('/fitur2');
+  const isFitur3 = currentPath.includes('/fitur3'); // TAMBAHKAN INI
 
   // ✅ PERBAIKAN: Dapatkan SEMUA surat yang tersedia (baik untuk user login maupun guest)
   useEffect(() => {
@@ -59,7 +59,7 @@ const Header1 = forwardRef(({ toggleSidebar, session, userStatus, onSearchClick 
     });
 
     setAktifSuratList(allSurat);
-  }, [session, userStatus]); // ✅ DEPENDENCY PADA SESSION DAN USERSTATUS
+  }, [session, userStatus]);
 
   // ✅ PERBAIKAN: Cek apakah di halaman surat (ada nomor surat di path)
   const isSuratPage = /\/\d+$/.test(currentPath);
@@ -98,11 +98,15 @@ const Header1 = forwardRef(({ toggleSidebar, session, userStatus, onSearchClick 
     setShowSuggestions(true);
   };
 
-  // ✅ PERBAIKAN: Handle pilih surat dari hasil pencarian
+  // ✅ PERBAIKAN BESAR: Handle pilih surat dari hasil pencarian untuk SEMUA FITUR
   const handleSelectSurat = (surat) => {
     let basePath;
+    
+    // Tentukan base path berdasarkan fitur aktif
     if (isFitur2) {
       basePath = "/app2/app/fitur2";
+    } else if (isFitur3) {
+      basePath = "/app2/app/fitur3"; // ✅ TAMBAHKAN INI UNTUK FITUR 3
     } else {
       basePath = "/app2/app/fitur1";
     }

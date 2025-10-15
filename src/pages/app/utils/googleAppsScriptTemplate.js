@@ -61,6 +61,12 @@ function handleRequest(e) {
       case 'save':
         result = saveData(data);
         break;
+      case 'saveAllData':
+        result = saveAllData(data);
+        break;
+      case 'clearUserData':
+        result = clearUserData(data);
+        break;
       default:
         result = { status: 'error', message: "Action not recognized: " + action };
     }
@@ -84,7 +90,7 @@ function getSheet() {
   if (!sheet) {
     sheet = spreadsheet.insertSheet(CONFIG.SHEET_MAKNA);
     // Buat header untuk semua data (STRUKTUR BARU)
-    sheet.getRange('A1:H1').setValues([[
+    sheet.getRange('A1:I1').setValues([[
       'id', 'user_id', 'surah', 'ayat', 'kata_index', 'kata_text', 'makna', 'keterangan', 'timestamp'
     ]]);
   }
@@ -99,6 +105,116 @@ function createResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
   
   return response;
+}
+
+// FUNGSI BARU: Save All Data untuk sinkronisasi
+function saveAllData(data) {
+  try {
+    var userId = data.user_id;
+    var maknaData = JSON.parse(data.makna);
+    var catatanData = JSON.parse(data.catatan);
+
+    var sheet = getSheet();
+    var allData = sheet.getDataRange().getValues();
+    var headers = allData[0];
+
+    // Hapus semua data user yang lama
+    var rowsToDelete = [];
+    for (var i = allData.length - 1; i >= 1; i--) {
+      var row = allData[i];
+      if (row[headers.indexOf('user_id')] == userId) {
+        rowsToDelete.push(i + 1);
+      }
+    }
+
+    // Hapus dari bawah ke atas
+    for (var j = 0; j < rowsToDelete.length; j++) {
+      sheet.deleteRow(rowsToDelete[j]);
+    }
+
+    // Simpan data makna baru
+    for (var key in maknaData) {
+      var makna = maknaData[key];
+      var rowData = [
+        makna.id || Utilities.getUuid(),
+        makna.user_id,
+        makna.surah,
+        makna.ayat,
+        makna.kata_index,
+        makna.kata_text,
+        makna.makna,
+        makna.keterangan,
+        makna.timestamp || new Date().toISOString()
+      ];
+      sheet.appendRow(rowData);
+    }
+
+    // Simpan data catatan baru
+    for (var key in catatanData) {
+      var catatan = catatanData[key];
+      var rowData = [
+        catatan.id || Utilities.getUuid(),
+        catatan.user_id,
+        catatan.surah,
+        catatan.ayat,
+        catatan.kata_index,
+        catatan.kata_text,
+        catatan.makna,
+        catatan.keterangan,
+        catatan.timestamp || new Date().toISOString()
+      ];
+      sheet.appendRow(rowData);
+    }
+
+    return {
+      status: 'success',
+      message: 'All data saved successfully',
+      data: { 
+        maknaCount: Object.keys(maknaData).length,
+        catatanCount: Object.keys(catatanData).length
+      }
+    };
+
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error.toString()
+    };
+  }
+}
+
+// FUNGSI BARU: Clear User Data
+function clearUserData(data) {
+  try {
+    var userId = data.user_id;
+    
+    var sheet = getSheet();
+    var allData = sheet.getDataRange().getValues();
+    var headers = allData[0];
+
+    var deletedCount = 0;
+    
+    // Hapus dari bawah ke atas
+    for (var i = allData.length - 1; i >= 1; i--) {
+      var row = allData[i];
+      if (row[headers.indexOf('user_id')] == userId) {
+        sheet.deleteRow(i + 1);
+        deletedCount++;
+      }
+    }
+
+    return {
+      status: 'success',
+      message: 'User data cleared successfully',
+      data: { deletedCount: deletedCount }
+    };
+
+  } catch (error) {
+    return {
+      status: 'error',
+      message: error.toString()
+    };
+  }
 }
 
 // FUNGSI BARU: Get all data for a user

@@ -83,7 +83,7 @@ const Panduan3 = () => {
       
       <div className="mb-4" style={{ marginBottom: "2rem" }}>
         <p className="text-center text-muted" style={{ textAlign: "justify", textAlignLast: "center" }}>
-          Fitur ini memungkinkan Anda <strong>mempelajari makna setiap kata dan keterangan setiap ayat dalam Al-Quran.</strong> 
+          Fitur ini memungkinkan Anda <strong>memaknai dan menulis keterangan setiap ayat Al-Quran (dengan Manqul, Musnad, Muttashil).</strong> 
         </p>
       </div>
 
@@ -97,17 +97,17 @@ const Panduan3 = () => {
             <strong>Ma'nai </strong> - Klik pada kata Arab untuk membuka editor makna:
             <ul className="small mt-2" style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
               <li style={{ marginBottom: "0.4rem" }}><strong>Input Makna</strong> - Ketik arti kata</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Simpan</strong> - Data tersimpan langsung ke database</li>
+              <li style={{ marginBottom: "0.4rem" }}><strong>Simpan</strong> - Data tersimpan di cache</li>
+
+                            
+                            <li style={{ marginBottom: "0.4rem" }}><strong>Jika data cache hilang atau terhapus</strong> - Klik tombol muat data dari database yang ada di header</li>
+                            
+                            <li style={{ marginBottom: "0.4rem" }}><strong>Jangan lupa</strong> - Backup data dengan mengklik tombol backup di header agar jika cache terhapus atau hilang, data bisa dimuat kembali</li>
               
             </ul>
           </li>
           <li style={{ marginBottom: "0.8rem" }}>
-            <strong>Tambah Catatan Ayat</strong> - Klik ikon 📝 di akhir ayat untuk:
-            <ul className="small mt-2" style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Keterangan Ma'na</strong> - Tambah penjelasan konteks ayat</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Catatan Pribadi</strong> - Simpan insight atau renungan</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Ringkasan Ma'na</strong> - Poin penting dari ayat tersebut</li>
-            </ul>
+            <strong>Keterangan dan atau catatan Ayat</strong> - Klik ikon 📝 di akhir ayat
           </li>
         
         </ol>

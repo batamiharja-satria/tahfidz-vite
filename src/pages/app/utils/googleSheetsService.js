@@ -1,6 +1,6 @@
 // utils/googleSheetsService.js
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbzpgq580cP7wVTdGMEtz4WKau5GT6mhPDK7NDGnMe-3mR_foNDoBfmw_AR5u91blqbR/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyTv6L24baNAE-uNHM-BHb-00utmckYDEWMLsck9Qi2RykUPVkK-i1eEZuRa7L756iD/exec';
 
 class QuranDataService {
   constructor() {
