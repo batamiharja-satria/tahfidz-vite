@@ -539,12 +539,8 @@ const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
                   }}
                 >
                   <div className="d-flex justify-content-between align-items-start mb-1">
-                    <div className="d-flex align-items-center">
-                      <span className="badge bg-secondary me-2" style={{ fontSize: "0.8rem" }}>
-                        {toArabicNumber(ayat.nomor)}
-                      </span>
-                    </div>
-                    <div className="d-flex gap-1">
+                    
+                                        <div className="d-flex gap-1">
                       <Button 
                         variant={currentAyat === ayat.nomor && isPlaying && playMode === "single" ? "success" : "outline-success"}
                         size="sm"
@@ -555,6 +551,14 @@ const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
                         {currentAyat === ayat.nomor && isPlaying && playMode === "single" ? "⏹️" : "🔊"}
                       </Button>
                     </div>
+                    
+                    
+                    <div className="d-flex align-items-center">
+                      <span className="badge bg-secondary me-2" style={{ fontSize: "0.8rem" }}>
+                        {toArabicNumber(ayat.nomor)}
+                      </span>
+                    </div>
+
                   </div>
                   
                   {/* Conditional rendering berdasarkan showArabic */}
@@ -563,7 +567,7 @@ const TampilanSuratIstima = ({ nomor, session, userStatus }) => {
                       className="text-end mb-1" 
                       style={{ 
                         fontFamily: "Scheherazade, serif", 
-                        fontSize: "1.5rem",
+                        fontSize: "1.7rem",
                         lineHeight: "1.6",
                         minHeight: "2rem"
                       }}
