@@ -1,290 +1,158 @@
-// Google Sheets Service untuk komunikasi dengan Google Apps Script
-// Ganti YOUR_SCRIPT_URL dengan URL Google Apps Script yang sudah di-deploy
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9zYuDUxTXaStygUAIZUhpg-jZ0T5j4KKKGp4vnCKJm0hQttDuYJ3MAMbeGRSPscj5DA/exec';
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec'; // Ganti dengan URL Apps Script Anda
-
-class GoogleSheetsService {
+class QuranDataService {
   constructor() {
     this.baseUrl = SCRIPT_URL;
   }
 
-  // Helper method untuk memanggil API
-  async callAPI(method, data = {}) {
+  // Generic API call method
+  async callAPI(action, data = {}) {
     try {
-      const params = new URLSearchParams();
-      params.append('method', method);
-      
-      if (Object.keys(data).length > 0) {
-        params.append('data', JSON.stringify(data));
-      }
+      const formData = new URLSearchParams();
+      formData.append('action', action);
+      formData.append('data', JSON.stringify(data));
 
-      const url = `${this.baseUrl}?${params.toString()}`;
-      const response = await fetch(url, {
-        method: 'GET',
-        mode: 'no-cors' // Google Apps Script tidak support CORS untuk GET
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        body: formData
       });
 
-      // Karena no-cors, kita tidak bisa membaca response
-      // Jadi kita anggap berhasil untuk sekarang
-      return { success: true, data };
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        return result;
+      } else {
+        throw new Error(result.error || 'Unknown error occurred');
+      }
     } catch (error) {
-      console.error('Google Sheets API Error:', error);
-      throw error;
+      console.error('API Error:', error);
+      // Fallback to localStorage
+      return this.localStorageFallback(action, data);
     }
   }
 
-  // ===== SERVICE UNTUK SEMUA DATA =====
+  // localStorage fallback
+  localStorageFallback(action, data) {
+    const storageKey = 'quran_app_data';
+    let allData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    
+    switch(action) {
+      case 'save':
+        const id = data.id || Date.now().toString();
+        const dataToSave = {
+          ...data,
+          id: id,
+          timestamp: new Date().toISOString()
+        };
+        
+        if (!allData[data.user_id]) {
+          allData[data.user_id] = [];
+        }
+        
+        // Remove existing entry if exists
+        allData[data.user_id] = allData[data.user_id].filter(
+          item => !(item.surah === data.surah && item.ayat === data.ayat)
+        );
+        
+        // Add new entry
+        allData[data.user_id].push(dataToSave);
+        localStorage.setItem(storageKey, JSON.stringify(allData));
+        
+        return {
+          success: true,
+          message: 'Data saved to localStorage',
+          id: id,
+          data: dataToSave
+        };
 
-  // Ambil data berdasarkan filter
+      case 'get':
+        const userData = allData[data.user_id] || [];
+        let filteredData = userData;
+        
+        if (data.surah) {
+          filteredData = filteredData.filter(item => item.surah == data.surah);
+        }
+        if (data.ayat) {
+          filteredData = filteredData.filter(item => item.ayat == data.ayat);
+        }
+        
+        return {
+          success: true,
+          data: filteredData
+        };
+
+      case 'delete':
+        if (allData[data.user_id]) {
+          allData[data.user_id] = allData[data.user_id].filter(
+            item => item.id !== data.id
+          );
+          localStorage.setItem(storageKey, JSON.stringify(allData));
+        }
+        
+        return {
+          success: true,
+          message: 'Data deleted from localStorage'
+        };
+
+      default:
+        return { success: false, error: 'Action not supported' };
+    }
+  }
+
+  // Save data (both makna and catatan)
+  async saveData(data) {
+    return this.callAPI('save', data);
+  }
+
+  // Get data with filters
   async getData(filters = {}) {
     return this.callAPI('get', filters);
   }
 
-  // Tambah data baru
-  async addData(data) {
-    return this.callAPI('add', data);
+  // Delete data
+  async deleteData(data) {
+    return this.callAPI('delete', data);
   }
 
-  // Update data existing
-  async updateData(id, data) {
-    return this.callAPI('update', { id, ...data });
-  }
-
-  // Hapus data
-  async deleteData(id) {
-    return this.callAPI('delete', { id });
-  }
-
-  // Method khusus untuk makna kata
-  async getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex) {
-    const filters = {
-      user_id: userId,
-      surah: surahNumber,
-      ayat: ayatNumber,
-      kata_index: kataIndex
-    };
-    const result = await this.getData(filters);
-    return result.data && result.data.length > 0 ? result.data[0] : null;
-  }
-
-  // Method khusus untuk catatan ayat
-  async getCatatanByAyat(userId, surahNumber, ayatNumber) {
-    const filters = {
-      user_id: userId,
-      surah: surahNumber,
-      ayat: ayatNumber,
-      kata_index: -1 // kata_index = -1 untuk catatan ayat
-    };
-    const result = await this.getData(filters);
-    return result.data && result.data.length > 0 ? result.data[0] : null;
-  }
-
-  // Simpan makna kata
+  // Specific methods for different data types
   async saveMakna(maknaData) {
-    return this.addData(maknaData);
+    return this.saveData({
+      ...maknaData,
+      type: 'makna'
+    });
   }
 
-  // Simpan catatan ayat
   async saveCatatan(catatanData) {
-    return this.addData(catatanData);
+    return this.saveData({
+      ...catatanData,
+      type: 'catatan'
+    });
+  }
+
+  async getMaknaByAyat(userId, surah, ayat) {
+    const result = await this.getData({
+      user_id: userId,
+      surah: surah,
+      ayat: ayat,
+      type: 'makna'
+    });
+    return result.data && result.data.length > 0 ? result.data[0] : null;
+  }
+
+  async getCatatanByAyat(userId, surah, ayat) {
+    const result = await this.getData({
+      user_id: userId,
+      surah: surah,
+      ayat: ayat,
+      type: 'catatan'
+    });
+    return result.data && result.data.length > 0 ? result.data[0] : null;
   }
 }
 
 // Export singleton instance
-export const googleSheetsService = new GoogleSheetsService();
-
-// Fallback service menggunakan localStorage jika Google Sheets tidak tersedia
-class LocalStorageFallback {
-  constructor() {
-    this.storageKey = 'quran_makna_data';
-  }
-
-  // Helper methods
-  getFromStorage() {
-    const data = localStorage.getItem(this.storageKey);
-    return data ? JSON.parse(data) : [];
-  }
-
-  saveToStorage(data) {
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
-  }
-
-  generateId() {
-    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-  }
-
-  // Ambil data berdasarkan filter
-  async getData(filters = {}) {
-    const allData = this.getFromStorage();
-    let filteredData = allData;
-
-    // Apply filters
-    if (filters.user_id) {
-      filteredData = filteredData.filter(item => item.user_id === filters.user_id);
-    }
-    if (filters.surah !== undefined) {
-      filteredData = filteredData.filter(item => parseInt(item.surah) === parseInt(filters.surah));
-    }
-    if (filters.ayat !== undefined) {
-      filteredData = filteredData.filter(item => parseInt(item.ayat) === parseInt(filters.ayat));
-    }
-    if (filters.kata_index !== undefined) {
-      filteredData = filteredData.filter(item => parseInt(item.kata_index) === parseInt(filters.kata_index));
-    }
-
-    return { data: filteredData };
-  }
-
-  // Tambah data baru
-  async addData(newData) {
-    const allData = this.getFromStorage();
-    
-    const dataToSave = {
-      ...newData,
-      id: newData.id || this.generateId(),
-      timestamp: new Date().toISOString()
-    };
-
-    allData.push(dataToSave);
-    this.saveToStorage(allData);
-    
-    return { 
-      message: 'Data added successfully',
-      id: dataToSave.id,
-      data: dataToSave
-    };
-  }
-
-  // Update data existing
-  async updateData(id, updatedData) {
-    const allData = this.getFromStorage();
-    const index = allData.findIndex(item => item.id === id);
-    
-    if (index === -1) {
-      throw new Error('Data not found');
-    }
-
-    allData[index] = { ...allData[index], ...updatedData };
-    this.saveToStorage(allData);
-    
-    return { 
-      message: 'Data updated successfully',
-      id: id
-    };
-  }
-
-  // Hapus data
-  async deleteData(id) {
-    const allData = this.getFromStorage();
-    const newData = allData.filter(item => item.id !== id);
-    
-    this.saveToStorage(newData);
-    return { message: 'Data deleted successfully' };
-  }
-
-  // Method khusus untuk makna kata
-  async getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex) {
-    const result = await this.getData({
-      user_id: userId,
-      surah: surahNumber,
-      ayat: ayatNumber,
-      kata_index: kataIndex
-    });
-    return result.data && result.data.length > 0 ? result.data[0] : null;
-  }
-
-  // Method khusus untuk catatan ayat
-  async getCatatanByAyat(userId, surahNumber, ayatNumber) {
-    const result = await this.getData({
-      user_id: userId,
-      surah: surahNumber,
-      ayat: ayatNumber,
-      kata_index: -1
-    });
-    return result.data && result.data.length > 0 ? result.data[0] : null;
-  }
-
-  // Simpan makna kata
-  async saveMakna(maknaData) {
-    return this.addData(maknaData);
-  }
-
-  // Simpan catatan ayat
-  async saveCatatan(catatanData) {
-    return this.addData(catatanData);
-  }
-}
-
-export const localStorageService = new LocalStorageFallback();
-
-// Service utama yang akan digunakan - otomatis fallback ke localStorage jika Google Sheets gagal
-export class QuranDataService {
-  constructor() {
-    this.useGoogleSheets = true;
-    this.testConnection();
-  }
-
-  async testConnection() {
-    try {
-      // Test koneksi ke Google Sheets
-      await googleSheetsService.callAPI('get');
-      this.useGoogleSheets = true;
-      console.log('✅ Connected to Google Sheets API');
-    } catch (error) {
-      this.useGoogleSheets = false;
-      console.log('⚠️ Using localStorage fallback for data storage');
-    }
-  }
-
-  getService() {
-    return this.useGoogleSheets ? googleSheetsService : localStorageService;
-  }
-
-  // ===== METHOD UMUM =====
-  async getData(filters = {}) {
-    return this.getService().getData(filters);
-  }
-
-  async addData(data) {
-    return this.getService().addData(data);
-  }
-
-  async updateData(id, data) {
-    return this.getService().updateData(id, data);
-  }
-
-  async deleteData(id) {
-    return this.getService().deleteData(id);
-  }
-
-  // ===== METHOD KHUSUS =====
-  
-  // Untuk makna per kata (kata_index >= 0)
-  async getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex) {
-    return this.getService().getMaknaByKata(userId, surahNumber, ayatNumber, kataIndex);
-  }
-
-  async saveMakna(maknaData) {
-    return this.getService().saveMakna(maknaData);
-  }
-
-  // Untuk catatan ayat (kata_index = -1)
-  async getCatatanByAyat(userId, surahNumber, ayatNumber) {
-    return this.getService().getCatatanByAyat(userId, surahNumber, ayatNumber);
-  }
-
-  async saveCatatan(catatanData) {
-    return this.getService().saveCatatan(catatanData);
-  }
-
-  // Ambil semua data untuk surah tertentu
-  async getDataBySurah(userId, surahNumber) {
-    return this.getService().getData({
-      user_id: userId,
-      surah: surahNumber
-    });
-  }
-}
-
-// Export instance utama
 export const quranDataService = new QuranDataService();

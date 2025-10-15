@@ -2,7 +2,7 @@
 // Hanya menggunakan satu sheet: MaknaData
 
 const CONFIG = {
-  SHEET_ID: '1hYIwGs6WTlmFt6-3tj3w90n-nHync42Amk9WKKaWT4I', // Ganti dengan ID spreadsheet Anda
+  SHEET_ID: '1MCG4TC3sj2o0w8Z3K84Y0usfsh-ILU75JPvC6MuPbuQ',
   SHEET_MAKNA: 'MaknaData'
 };
 
@@ -17,7 +17,14 @@ function doPost(e) {
 function handleRequest(e) {
   try {
     const action = e.parameter.action;
-    const data = e.parameter.data ? JSON.parse(e.parameter.data) : null;
+    let data = {};
+    
+    // Parse data from POST or GET
+    if (e.postData) {
+      data = JSON.parse(e.postData.contents);
+    } else {
+      data = e.parameter.data ? JSON.parse(e.parameter.data) : {};
+    }
     
     let result;
     
@@ -35,12 +42,15 @@ function handleRequest(e) {
         result = deleteData(data);
         break;
       default:
-        throw new Error('Action not supported');
+        result = { success: true, message: "Default response" };
     }
     
     return createResponse(result);
   } catch (error) {
-    return createResponse({ error: error.message }, true);
+    return createResponse({ 
+      success: false, 
+      error: error.message 
+    });
   }
 }
 
@@ -61,22 +71,13 @@ function getSheet() {
   return sheet;
 }
 
-function createResponse(data, isError = false) {
-  const response = {
-    success: !isError,
-    timestamp: new Date().toISOString(),
-    ...data
-  };
+// PERBAIKAN: Fungsi createResponse yang benar
+function createResponse(data) {
+  const response = ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
   
-  // PERBAIKAN: setMimeType (bukan setMimetype)
-  return ContentService
-    .createTextOutput(JSON.stringify(response))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
-    });
+  return response;
 }
 
 // CRUD Operations
@@ -115,7 +116,10 @@ function getData(filters = {}) {
     }
   }
   
-  return { data: result };
+  return { 
+    success: true,
+    data: result 
+  };
 }
 
 function saveData(newData) {
@@ -164,6 +168,7 @@ function saveData(newData) {
   }
   
   return { 
+    success: true,
     message: 'Data saved successfully',
     id: newData.id,
     data: newData
@@ -178,9 +183,15 @@ function deleteData(data) {
     const row = allData[i];
     if (row[0] === data.id) {
       sheet.deleteRow(i + 1);
-      return { message: 'Data deleted successfully' };
+      return { 
+        success: true,
+        message: 'Data deleted successfully' 
+      };
     }
   }
   
-  throw new Error('Data not found');
+  return {
+    success: false,
+    error: 'Data not found'
+  };
 }
