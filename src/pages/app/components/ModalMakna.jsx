@@ -1,130 +1,128 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert, Badge } from 'react-bootstrap';
-import { quranDataService } from '../utils/googleSheetsService';
+import { cacheService } from '../utils/cacheService';
 
 const ModalMakna = ({ 
   show, 
   onHide, 
   kataData, 
-  onSave,
-  existingData = null 
+  onSave
 }) => {
   const [inputText, setInputText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [savedData, setSavedData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Reset state ketika modal dibuka dengan data baru
   useEffect(() => {
     if (show && kataData) {
       console.log('ModalMakna dibuka untuk:', kataData);
+      setError('');
       
-      // Load existing data
-      const loadData = async () => {
-        try {
-          const result = await quranDataService.getMaknaByKata(
-            kataData.userId,
-            kataData.surahNumber, 
-            kataData.ayatNumber,
-            kataData.kataIndex
-          );
-          
-          if (result) {
-            setInputText(result.makna || '');
-            setSavedData(result);
-            setIsEditing(false);
-          } else {
-            setInputText('');
-            setSavedData(null);
-            setIsEditing(true);
-          }
-        } catch (error) {
-          console.error('Error loading makna:', error);
-          setInputText('');
-          setSavedData(null);
-          setIsEditing(true);
-        }
-      };
-
-      loadData();
+      // Load from cache - INSTANT
+      const cachedData = cacheService.getMakna(
+        kataData.userId,
+        kataData.surahNumber, 
+        kataData.ayatNumber,
+        kataData.kataIndex
+      );
+      
+      console.log('Data dari cache:', cachedData);
+      
+      if (cachedData) {
+        setInputText(cachedData.makna || '');
+        setSavedData(cachedData);
+        setIsEditing(false);
+      } else {
+        setInputText('');
+        setSavedData(null);
+        setIsEditing(true);
+      }
     }
   }, [show, kataData]);
 
   const handleSave = async () => {
-    if (inputText.trim()) {
-      setIsLoading(true);
-      
-      try {
-        const dataToSave = {
-          user_id: kataData.userId,
-          surah: kataData.surahNumber,
-          ayat: kataData.ayatNumber,
-          kata_index: kataData.kataIndex, // Indeks kata sebenarnya
-          kata_text: kataData.kataText, // Teks kata
-          makna: inputText.trim(), // Disimpan di sini
-          keterangan: '', // Kosong untuk makna kata
-        };
+    if (!inputText.trim()) {
+      setError('Makna tidak boleh kosong');
+      return;
+    }
 
-        let result;
-        if (savedData) {
-          // Update existing
-          result = await quranDataService.updateData(savedData.id, dataToSave);
-        } else {
-          // Add new
-          result = await quranDataService.saveMakna(dataToSave);
-        }
-        
-        // Reload data untuk mendapatkan ID jika baru
-        const updatedData = await quranDataService.getMaknaByKata(
-          kataData.userId,
-          kataData.surahNumber, 
-          kataData.ayatNumber,
-          kataData.kataIndex
-        );
-        
-        setSavedData(updatedData);
-        setIsEditing(false);
-        
-        // Panggil callback ke parent untuk update state
-        if (onSave) {
-          onSave(updatedData);
-        }
-        
-      } catch (error) {
-        console.error('Error saving data:', error);
-        alert('Gagal menyimpan data');
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const dataToSave = {
+        user_id: kataData.userId,
+        surah: kataData.surahNumber,
+        ayat: kataData.ayatNumber,
+        kata_index: kataData.kataIndex,
+        kata_text: kataData.kataText,
+        makna: inputText.trim(),
+        keterangan: '',
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('Saving to cache:', dataToSave);
+
+      // Simpan ke cache - INSTANT
+      const savedCacheData = cacheService.setMakna(
+        kataData.userId,
+        kataData.surahNumber,
+        kataData.ayatNumber,
+        kataData.kataIndex,
+        dataToSave
+      );
+
+      setSavedData(savedCacheData);
+      setIsEditing(false);
+      
+      // Panggil callback ke parent untuk update tampilan
+      if (onSave) {
+        onSave(savedCacheData);
       }
+      
+    } catch (error) {
+      console.error('Error saving makna:', error);
+      setError(`Gagal menyimpan makna: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEdit = () => {
     setIsEditing(true);
+    setError('');
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Hapus makna untuk kata ini?')) {
-      setIsLoading(true);
-      try {
-        if (savedData && savedData.id) {
-          await quranDataService.deleteData(savedData.id);
-        }
-        
-        setInputText('');
-        setSavedData(null);
-        setIsEditing(true);
-        
-        if (onSave) {
-          onSave(null); // Notify parent about deletion
-        }
-        
-      } catch (error) {
-        console.error('Error deleting data:', error);
-        alert('Gagal menghapus data');
-      } finally {
-        setIsLoading(false);
+    if (!window.confirm('Hapus makna untuk kata ini?')) return;
+
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Hapus dari cache - INSTANT
+      cacheService.deleteMakna(
+        kataData.userId,
+        kataData.surahNumber,
+        kataData.ayatNumber,
+        kataData.kataIndex
+      );
+      
+      setInputText('');
+      setSavedData(null);
+      setIsEditing(true);
+      
+      if (onSave) {
+        onSave(null);
       }
+      
+    } catch (error) {
+      console.error('Error deleting makna:', error);
+      setError(`Gagal menghapus makna: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -132,6 +130,7 @@ const ModalMakna = ({
     setInputText('');
     setIsEditing(false);
     setSavedData(null);
+    setError('');
     onHide();
   };
 
@@ -150,6 +149,12 @@ const ModalMakna = ({
       </Modal.Header>
       
       <Modal.Body style={{ padding: '25px' }}>
+        {error && (
+          <Alert variant="danger" className="mb-3">
+            {error}
+          </Alert>
+        )}
+
         {kataData && (
           <div className="text-center mb-4">
             <div style={{ 
@@ -171,7 +176,7 @@ const ModalMakna = ({
             
             {savedData && (
               <Badge bg="success" className="ms-2">
-                ✅ Tersimpan
+                ✅ Tersimpan di Cache
               </Badge>
             )}
           </div>
@@ -197,7 +202,7 @@ const ModalMakna = ({
             />
             <Form.Text className="text-muted">
               {isEditing 
-                ? "Ketik makna kata kemudian klik Simpan" 
+                ? "Ketik makna kata kemudian klik Simpan (disimpan di cache lokal)" 
                 : "Klik tombol Edit untuk mengubah makna"}
             </Form.Text>
           </Form.Group>
@@ -208,7 +213,7 @@ const ModalMakna = ({
             <div className="spinner-border text-success" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            <p className="text-muted mt-2">Menyimpan data...</p>
+            <p className="text-muted mt-2">Menyimpan ke cache...</p>
           </div>
         )}
       </Modal.Body>
@@ -250,7 +255,7 @@ const ModalMakna = ({
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan'
+                  '💾 Simpan ke Cache'
                 )}
               </Button>
             ) : (

@@ -1,32 +1,39 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Container } from "react-bootstrap";
+import { Container, Button, Badge, Alert } from "react-bootstrap";
 import suratConfig from "./SuratConfig";
 import { UserStorage } from "../utils/userStorage";
 import ModalMakna from "../components/ModalMakna";
 import ModalCatatan from "../components/ModalCatatan";
-import { quranDataService } from "../utils/googleSheetsService"; // IMPORT SERVICE BARU
+import { cacheService } from "../utils/cacheService";
+import { quranDataService } from "../utils/googleSheetsService";
 
 const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
   const [data, setData] = useState([]);
   const [isSuratAktif, setIsSuratAktif] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // ✅ STATE BARU UNTUK MODAL MAKNA
+  // STATE UNTUK MODAL MAKNA
   const [showModalMakna, setShowModalMakna] = useState(false);
   const [selectedKata, setSelectedKata] = useState(null);
-  const [existingMaknaData, setExistingMaknaData] = useState(null);
-  const [maknaStorage, setMaknaStorage] = useState({});
 
-  // ✅ STATE BARU UNTUK MODAL CATATAN
+  // STATE UNTUK MODAL CATATAN
   const [showModalCatatan, setShowModalCatatan] = useState(false);
   const [selectedAyat, setSelectedAyat] = useState(null);
-  const [existingCatatanData, setExistingCatatanData] = useState(null);
-  const [catatanStorage, setCatatanStorage] = useState({});
 
-  // ✅ REF UNTUK CONTAINER AYAT - SCROLL POSITION
+  // STATE UNTUK CACHE
+  const [maknaStorage, setMaknaStorage] = useState({});
+  const [catatanStorage, setCatatanStorage] = useState({});
+  const [syncStatus, setSyncStatus] = useState({ 
+    loading: false, 
+    message: '',
+    type: 'info' 
+  });
+  const [cacheStats, setCacheStats] = useState({});
+
+  // REF UNTUK CONTAINER AYAT - SCROLL POSITION
   const ayatContainerRef = useRef(null);
 
-  // ✅ CEK APAKAH SURAT INI TERMASUK PREMIUM YANG AKTIF (GUNAKAN USERSTATUS DARI PROP)
+  // CEK APAKAH SURAT INI TERMASUK PREMIUM YANG AKTIF
   useEffect(() => {
     if (!nomor || !userStatus || userStatus.length === 0) {
       setLoading(false);
@@ -51,7 +58,6 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     Object.keys(suratConfig).forEach((key) => {
       const premiumIndex = premiumMapping[key];
       
-      // ✅ GUNAKAN USERSTATUS DARI PROP
       if (premiumIndex !== undefined && userStatus[premiumIndex] === true) {
         const premium = suratConfig[key];
         
@@ -94,40 +100,45 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     }
   }, [nomor, userStatus]);
 
-  // ✅ LOAD DATA MAKNA DAN CATATAN DARI SERVICE
+  // LOAD DATA DARI CACHE
   useEffect(() => {
-    if (!isSuratAktif || !nomor || !session?.user?.id) return;
+    if (!isSuratAktif || !session?.user?.id) return;
 
-    const loadData = async () => {
-      const userId = session.user.id;
-      
-      try {
-        // Load data makna untuk surat ini
-        const maknaData = await quranDataService.getMaknaBySurah(userId, nomor);
-        const maknaStorageObj = {};
-        maknaData.forEach(item => {
-          const key = `${item.surah}-${item.ayat}-${item.kata_index}`;
-          maknaStorageObj[key] = item;
-        });
-        setMaknaStorage(maknaStorageObj);
+    const userId = session.user.id;
+    
+    // Load from cache - INSTANT
+    const allMakna = cacheService.getAllMakna();
+    const allCatatan = cacheService.getAllCatatan();
+    
+    // Filter hanya untuk user ini
+    const userMakna = Object.keys(allMakna)
+      .filter(key => key.startsWith(userId))
+      .reduce((obj, key) => {
+        obj[key] = allMakna[key];
+        return obj;
+      }, {});
 
-        // Load data catatan untuk surat ini
-        const catatanData = await quranDataService.getCatatanBySurah(userId, nomor);
-        const catatanStorageObj = {};
-        catatanData.forEach(item => {
-          const key = `${item.surah}-${item.ayat}`;
-          catatanStorageObj[key] = item;
-        });
-        setCatatanStorage(catatanStorageObj);
-      } catch (error) {
-        console.error('Error loading data from service:', error);
-      }
-    };
+    const userCatatan = Object.keys(allCatatan)
+      .filter(key => key.startsWith(userId))
+      .reduce((obj, key) => {
+        obj[key] = allCatatan[key];
+        return obj;
+      }, {});
 
-    loadData();
-  }, [isSuratAktif, nomor, session]);
+    setMaknaStorage(userMakna);
+    setCatatanStorage(userCatatan);
+    
+    // Update cache stats
+    updateCacheStats();
+  }, [isSuratAktif, session]);
 
-  // ✅ SIMPAN SCROLL POSITION - FITUR MA'NA
+  // UPDATE CACHE STATS
+  const updateCacheStats = () => {
+    const stats = cacheService.getStats();
+    setCacheStats(stats);
+  };
+
+  // SIMPAN SCROLL POSITION
   useEffect(() => {
     const container = ayatContainerRef.current;
     if (!container) return;
@@ -140,7 +151,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [nomor, session]);
 
-  // ✅ RESTORE SCROLL POSITION - FITUR MA'NA
+  // RESTORE SCROLL POSITION
   useEffect(() => {
     const container = ayatContainerRef.current;
     if (!container) return;
@@ -158,8 +169,14 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     return words;
   };
 
-  // ✅ FUNGSI BARU: Handle klik pada kata
+  // FUNGSI: Handle klik pada kata
   const handleKataClick = (ayatNumber, kataIndex, kataText) => {
+    // Cek login
+    if (!session?.user?.id) {
+      alert('Silakan login terlebih dahulu untuk menambahkan makna kata');
+      return;
+    }
+
     console.log('Kata diklik:', { ayatNumber, kataIndex, kataText });
     
     const kataData = {
@@ -167,134 +184,184 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
       kataIndex,
       ayatNumber,
       surahNumber: nomor,
-      userId: session?.user?.id || 'user-id-placeholder'
+      userId: session.user.id
     };
 
     setSelectedKata(kataData);
-    
-    // Cek apakah sudah ada data makna untuk kata ini
-    const storageKey = `${nomor}-${ayatNumber}-${kataIndex}`;
-    const existingData = maknaStorage[storageKey];
-    setExistingMaknaData(existingData || null);
-    
     setShowModalMakna(true);
   };
 
-  // ✅ FUNGSI BARU: Handle save dari modal dengan service
-  const handleSaveMakna = async (savedData) => {
+  // FUNGSI: Handle save dari modal makna
+  const handleSaveMakna = (savedData) => {
+    // Update local state untuk menampilkan perubahan
     if (savedData) {
-      try {
-        // Simpan ke service
-        const result = await quranDataService.saveMakna(savedData);
-        
-        const storageKey = `${savedData.surah}-${savedData.ayat}-${savedData.kata_index}`;
-        
-        // Update storage dengan data baru
-        setMaknaStorage(prev => ({
-          ...prev,
-          [storageKey]: result
-        }));
-        
-        console.log('Data makna disimpan:', result);
-      } catch (error) {
-        console.error('Error saving makna:', error);
-        alert('Gagal menyimpan makna');
-      }
+      const key = `${savedData.user_id}_${savedData.surah}_${savedData.ayat}_${savedData.kata_index}`;
+      setMaknaStorage(prev => ({
+        ...prev,
+        [key]: savedData
+      }));
     } else {
-      // Jika savedData null, berarti data dihapus
-      const storageKey = `${selectedKata.surahNumber}-${selectedKata.ayatNumber}-${selectedKata.kataIndex}`;
-      
-      try {
-        await quranDataService.deleteMakna(
-          selectedKata.userId,
-          selectedKata.surahNumber,
-          selectedKata.ayatNumber,
-          selectedKata.kataIndex
-        );
-        
-        setMaknaStorage(prev => {
-          const newStorage = { ...prev };
-          delete newStorage[storageKey];
-          return newStorage;
-        });
-        
-        console.log('Data makna dihapus untuk:', storageKey);
-      } catch (error) {
-        console.error('Error deleting makna:', error);
-        alert('Gagal menghapus makna');
-      }
+      // Jika dihapus
+      const key = `${selectedKata.userId}_${selectedKata.surahNumber}_${selectedKata.ayatNumber}_${selectedKata.kataIndex}`;
+      setMaknaStorage(prev => {
+        const newStorage = { ...prev };
+        delete newStorage[key];
+        return newStorage;
+      });
     }
+    updateCacheStats();
   };
 
-  // ✅ FUNGSI BARU: Handle klik pada icon catatan ayat
+  // FUNGSI: Handle klik pada icon catatan ayat
   const handleCatatanClick = (ayatNumber) => {
+    // Cek login
+    if (!session?.user?.id) {
+      alert('Silakan login terlebih dahulu untuk menambahkan catatan');
+      return;
+    }
+
     console.log('Catatan ayat diklik:', ayatNumber);
     
     const ayatData = {
       ayatNumber,
       surahNumber: nomor,
-      userId: session?.user?.id || 'user-id-placeholder'
+      userId: session.user.id
     };
 
     setSelectedAyat(ayatData);
-    
-    // Cek apakah sudah ada data catatan untuk ayat ini
-    const storageKey = `${nomor}-${ayatNumber}`;
-    const existingData = catatanStorage[storageKey];
-    setExistingCatatanData(existingData || null);
-    
     setShowModalCatatan(true);
   };
 
-  // ✅ FUNGSI BARU: Handle save dari modal catatan dengan service
-  const handleSaveCatatan = async (savedData) => {
+  // FUNGSI: Handle save dari modal catatan
+  const handleSaveCatatan = (savedData) => {
+    // Update local state untuk menampilkan perubahan
     if (savedData) {
-      try {
-        // Simpan ke service
-        const result = await quranDataService.saveCatatan(savedData);
-        
-        const storageKey = `${savedData.surah}-${savedData.ayat}`;
-        
-        // Update storage dengan data baru
-        setCatatanStorage(prev => ({
-          ...prev,
-          [storageKey]: result
-        }));
-        
-        console.log('Data catatan disimpan:', result);
-      } catch (error) {
-        console.error('Error saving catatan:', error);
-        alert('Gagal menyimpan catatan');
-      }
+      const key = `${savedData.user_id}_${savedData.surah}_${savedData.ayat}`;
+      setCatatanStorage(prev => ({
+        ...prev,
+        [key]: savedData
+      }));
     } else {
-      // Jika savedData null, berarti data dihapus
-      const storageKey = `${selectedAyat.surahNumber}-${selectedAyat.ayatNumber}`;
+      // Jika dihapus
+      const key = `${selectedAyat.userId}_${selectedAyat.surahNumber}_${selectedAyat.ayatNumber}`;
+      setCatatanStorage(prev => {
+        const newStorage = { ...prev };
+        delete newStorage[key];
+        return newStorage;
+      });
+    }
+    updateCacheStats();
+  };
+
+  // FUNGSI: Simpan semua data ke database
+  const handleSaveToDatabase = async () => {
+    if (!session?.user?.id) {
+      alert('Silakan login terlebih dahulu');
+      return;
+    }
+
+    setSyncStatus({ loading: true, message: 'Menyimpan data ke database...', type: 'info' });
+
+    try {
+      const userId = session.user.id;
+      const exportData = cacheService.exportForDatabase();
       
-      try {
-        await quranDataService.deleteCatatan(
-          selectedAyat.userId,
-          selectedAyat.surahNumber,
-          selectedAyat.ayatNumber
-        );
+      console.log('Saving to database:', exportData);
+
+      const result = await quranDataService.saveAllData(userId, exportData.makna, exportData.catatan);
+      
+      if (result) {
+        // Mark as saved
+        cacheService.markAllAsSaved();
+        updateCacheStats();
         
-        setCatatanStorage(prev => {
-          const newStorage = { ...prev };
-          delete newStorage[storageKey];
-          return newStorage;
+        setSyncStatus({ 
+          loading: false, 
+          message: '✅ Data berhasil disimpan ke database!', 
+          type: 'success' 
         });
         
-        console.log('Data catatan dihapus untuk:', storageKey);
-      } catch (error) {
-        console.error('Error deleting catatan:', error);
-        alert('Gagal menghapus catatan');
+        // Clear message after 3 seconds
+        setTimeout(() => {
+          setSyncStatus({ loading: false, message: '', type: 'info' });
+        }, 3000);
       }
+    } catch (error) {
+      console.error('Error saving to database:', error);
+      setSyncStatus({ 
+        loading: false, 
+        message: `❌ Gagal menyimpan: ${error.message}`, 
+        type: 'danger' 
+      });
     }
   };
 
-  // ✅ FUNGSI BARU: Mendapatkan style untuk kata berdasarkan ada/tidaknya makna
+  // FUNGSI: Muat data dari database ke cache
+  const handleLoadFromDatabase = async () => {
+    if (!session?.user?.id) {
+      alert('Silakan login terlebih dahulu');
+      return;
+    }
+
+    setSyncStatus({ loading: true, message: 'Memuat data dari database...', type: 'info' });
+
+    try {
+      const userId = session.user.id;
+      const result = await quranDataService.getAllUserData(userId);
+      
+      if (result) {
+        // Process and import data
+        const processedData = {
+          makna: {},
+          catatan: {}
+        };
+
+        // Process the data into cache format
+        result.forEach(item => {
+          if (item.kata_index === -1) {
+            // Catatan
+            const key = `${item.user_id}_${item.surah}_${item.ayat}`;
+            processedData.catatan[key] = item;
+          } else {
+            // Makna
+            const key = `${item.user_id}_${item.surah}_${item.ayat}_${item.kata_index}`;
+            processedData.makna[key] = item;
+          }
+        });
+
+        // Import to cache
+        cacheService.importFromDatabase(processedData);
+        
+        // Update local state
+        setMaknaStorage(processedData.makna);
+        setCatatanStorage(processedData.catatan);
+        updateCacheStats();
+        
+        setSyncStatus({ 
+          loading: false, 
+          message: '✅ Data berhasil dimuat dari database!', 
+          type: 'success' 
+        });
+        
+        // Clear message after 3 seconds
+        setTimeout(() => {
+          setSyncStatus({ loading: false, message: '', type: 'info' });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error loading from database:', error);
+      setSyncStatus({ 
+        loading: false, 
+        message: `❌ Gagal memuat: ${error.message}`, 
+        type: 'danger' 
+      });
+    }
+  };
+
+  // FUNGSI: Mendapatkan style untuk kata berdasarkan ada/tidaknya makna
   const getKataStyle = (ayatNumber, kataIndex) => {
-    const storageKey = `${nomor}-${ayatNumber}-${kataIndex}`;
-    const hasMakna = maknaStorage[storageKey];
+    const key = `${session?.user?.id}_${nomor}_${ayatNumber}_${kataIndex}`;
+    const hasMakna = maknaStorage[key];
     
     return {
       cursor: 'pointer', 
@@ -310,10 +377,10 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     };
   };
 
-  // ✅ FUNGSI BARU: Mendapatkan style untuk container ayat berdasarkan ada/tidaknya catatan
+  // FUNGSI: Mendapatkan style untuk container ayat berdasarkan ada/tidaknya catatan
   const getAyatContainerStyle = (ayatNumber) => {
-    const storageKey = `${nomor}-${ayatNumber}`;
-    const hasCatatan = catatanStorage[storageKey];
+    const key = `${session?.user?.id}_${nomor}_${ayatNumber}`;
+    const hasCatatan = catatanStorage[key];
     
     return {
       background: 'white', 
@@ -328,10 +395,10 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     };
   };
 
-  // ✅ FUNGSI BARU: Mendapatkan style untuk icon catatan berdasarkan ada/tidaknya catatan
+  // FUNGSI: Mendapatkan style untuk icon catatan berdasarkan ada/tidaknya catatan
   const getCatatanIconStyle = (ayatNumber) => {
-    const storageKey = `${nomor}-${ayatNumber}`;
-    const hasCatatan = catatanStorage[storageKey];
+    const key = `${session?.user?.id}_${nomor}_${ayatNumber}`;
+    const hasCatatan = catatanStorage[key];
     
     return {
       position: 'absolute',
@@ -349,7 +416,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     };
   };
 
-  // ✅ DAPATKAN INFO SURAT DARI SURATCONFIG UNTUK HEADER
+  // DAPATKAN INFO SURAT DARI SURATCONFIG UNTUK HEADER
   const getSuratInfo = () => {
     const premiumMapping = {
       'premium1': 0, 'premium2': 1, 'premium3': 2, 'premium4': 3, 'premium5': 4,
@@ -371,10 +438,74 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
   };
 
   const suratInfo = getSuratInfo();
+  const hasUnsavedChanges = cacheService.hasUnsavedChanges();
 
   return (
     <div className="d-flex flex-column vw-100 vh-100">
-      {/* ✅ TAMBAH REF DI CONTAINER AYAT */}
+      {/* HEADER DENGAN TOMBOL SYNC */}
+      <div style={{ padding: '10px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+        <Container className="d-flex justify-content-between align-items-center">
+          <div>
+            <strong>Fitur 3: Tafsir Kata</strong>
+            {cacheStats && (
+              <small className="text-muted ms-2">
+                (Cache: {cacheStats.totalMakna || 0} makna, {cacheStats.totalCatatan || 0} catatan)
+                {hasUnsavedChanges && (
+                  <Badge bg="warning" className="ms-2">
+                    Ada Perubahan Belum Disimpan
+                  </Badge>
+                )}
+              </small>
+            )}
+          </div>
+          
+          {session?.user?.id && (
+            <div className="d-flex gap-2">
+              <Button 
+                variant="outline-primary" 
+                size="sm" 
+                onClick={handleLoadFromDatabase}
+                disabled={syncStatus.loading}
+              >
+                {syncStatus.loading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    Memuat...
+                  </>
+                ) : (
+                  '📥 Muat dari Database'
+                )}
+              </Button>
+              <Button 
+                variant={hasUnsavedChanges ? "warning" : "success"}
+                size="sm" 
+                onClick={handleSaveToDatabase}
+                disabled={syncStatus.loading || !hasUnsavedChanges}
+              >
+                {syncStatus.loading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  '💾 Simpan ke Database'
+                )}
+              </Button>
+            </div>
+          )}
+        </Container>
+
+        {/* SYNC STATUS */}
+        {syncStatus.message && (
+          <Container className="mt-2">
+            <Alert variant={syncStatus.type} className="py-2 mb-0">
+              <small>{syncStatus.message}</small>
+            </Alert>
+          </Container>
+        )}
+      </div>
+
+      {/* REF DI CONTAINER AYAT */}
       <div ref={ayatContainerRef} className="flex-grow-1 overflow-auto">
         <Container className="mt-4 mb-5">
           {!isSuratAktif ? (
@@ -387,7 +518,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
             </p>
           ) : (
             <>
-              {/* ✅ HEADER SURAT INFO */}
+              {/* HEADER SURAT INFO */}
               {suratInfo && (
                 <div style={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -407,13 +538,13 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                 </div>
               )}
 
-              {/* ✅ AYAT-AYAT DENGAN PEMOTONGAN KATA */}
+              {/* AYAT-AYAT DENGAN PEMOTONGAN KATA */}
               {data.map((ayat) => {
-                const hasCatatan = catatanStorage[`${nomor}-${ayat.nomor}`];
+                const hasCatatan = catatanStorage[`${session?.user?.id}_${nomor}_${ayat.nomor}`];
                 
                 return (
                   <div key={ayat.nomor} style={getAyatContainerStyle(ayat.nomor)}>
-                    {/* ✅ ICON CATATAN AYAT DENGAN INDIKATOR */}
+                    {/* ICON CATATAN AYAT DENGAN INDIKATOR */}
                     <button 
                       style={getCatatanIconStyle(ayat.nomor)}
                       onMouseEnter={(e) => {
@@ -450,7 +581,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                       )}
                     </button>
                     
-                    {/* ✅ NOMOR AYAT */}
+                    {/* NOMOR AYAT */}
                     <div style={{
                       display: 'inline-block',
                       background: '#965430',
@@ -468,7 +599,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                       {ayat.nomor}
                     </div>
                     
-                    {/* ✅ TEKS AYAT DENGAN KATA-KATA YANG BISA DIKLIK */}
+                    {/* TEKS AYAT DENGAN KATA-KATA YANG BISA DIKLIK */}
                     <div style={{ 
                       textAlign: 'right', 
                       lineHeight: '2.2', 
@@ -477,7 +608,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                       marginTop: '10px'
                     }}>
                       {splitAyatPerKata(ayat.ar).map((kata, kataIndex) => {
-                        const hasMakna = maknaStorage[`${nomor}-${ayat.nomor}-${kataIndex}`];
+                        const hasMakna = maknaStorage[`${session?.user?.id}_${nomor}_${ayat.nomor}_${kataIndex}`];
                         
                         return (
                           <span
@@ -524,21 +655,19 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
         </Container>
       </div>
 
-      {/* ✅ MODAL MAKNA */}
+      {/* MODAL MAKNA */}
       <ModalMakna
         show={showModalMakna}
         onHide={() => setShowModalMakna(false)}
         kataData={selectedKata}
-        existingData={existingMaknaData}
         onSave={handleSaveMakna}
       />
 
-      {/* ✅ MODAL CATATAN */}
+      {/* MODAL CATATAN */}
       <ModalCatatan
         show={showModalCatatan}
         onHide={() => setShowModalCatatan(false)}
         ayatData={selectedAyat}
-        existingData={existingCatatanData}
         onSave={handleSaveCatatan}
       />
     </div>

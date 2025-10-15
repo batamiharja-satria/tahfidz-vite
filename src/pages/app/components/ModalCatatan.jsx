@@ -1,128 +1,125 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert, Badge } from 'react-bootstrap';
-import { quranDataService } from '../utils/googleSheetsService';
+import { cacheService } from '../utils/cacheService';
 
 const ModalCatatan = ({ 
   show, 
   onHide, 
   ayatData, 
-  onSave,
-  existingData = null 
+  onSave
 }) => {
   const [inputText, setInputText] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [savedData, setSavedData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Reset state ketika modal dibuka dengan data baru
   useEffect(() => {
     if (show && ayatData) {
       console.log('ModalCatatan dibuka untuk:', ayatData);
+      setError('');
       
-      // Load existing data
-      const loadData = async () => {
-        try {
-          const result = await quranDataService.getCatatanByAyat(
-            ayatData.userId,
-            ayatData.surahNumber, 
-            ayatData.ayatNumber
-          );
-          
-          if (result) {
-            setInputText(result.keterangan || '');
-            setSavedData(result);
-            setIsEditing(false);
-          } else {
-            setInputText('');
-            setSavedData(null);
-            setIsEditing(true);
-          }
-        } catch (error) {
-          console.error('Error loading catatan:', error);
-          setInputText('');
-          setSavedData(null);
-          setIsEditing(true);
-        }
-      };
-
-      loadData();
+      // Load from cache - INSTANT
+      const cachedData = cacheService.getCatatan(
+        ayatData.userId,
+        ayatData.surahNumber, 
+        ayatData.ayatNumber
+      );
+      
+      console.log('Data catatan dari cache:', cachedData);
+      
+      if (cachedData) {
+        setInputText(cachedData.keterangan || '');
+        setSavedData(cachedData);
+        setIsEditing(false);
+      } else {
+        setInputText('');
+        setSavedData(null);
+        setIsEditing(true);
+      }
     }
   }, [show, ayatData]);
 
   const handleSave = async () => {
-    if (inputText.trim()) {
-      setIsLoading(true);
-      
-      try {
-        const dataToSave = {
-          user_id: ayatData.userId,
-          surah: ayatData.surahNumber,
-          ayat: ayatData.ayatNumber,
-          kata_index: -1, // Tanda bahwa ini adalah catatan ayat
-          kata_text: '', // Kosong untuk catatan ayat
-          makna: '', // Kosong untuk catatan ayat
-          keterangan: inputText.trim(), // Disimpan di sini
-        };
+    if (!inputText.trim()) {
+      setError('Catatan tidak boleh kosong');
+      return;
+    }
 
-        let result;
-        if (savedData) {
-          // Update existing
-          result = await quranDataService.updateData(savedData.id, dataToSave);
-        } else {
-          // Add new
-          result = await quranDataService.saveCatatan(dataToSave);
-        }
-        
-        // Reload data untuk mendapatkan ID jika baru
-        const updatedData = await quranDataService.getCatatanByAyat(
-          ayatData.userId,
-          ayatData.surahNumber, 
-          ayatData.ayatNumber
-        );
-        
-        setSavedData(updatedData);
-        setIsEditing(false);
-        
-        // Panggil callback ke parent untuk update state
-        if (onSave) {
-          onSave(updatedData);
-        }
-        
-      } catch (error) {
-        console.error('Error saving data:', error);
-        alert('Gagal menyimpan catatan');
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const dataToSave = {
+        user_id: ayatData.userId,
+        surah: ayatData.surahNumber,
+        ayat: ayatData.ayatNumber,
+        kata_index: -1,
+        kata_text: '',
+        makna: '',
+        keterangan: inputText.trim(),
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('Saving catatan to cache:', dataToSave);
+
+      // Simpan ke cache - INSTANT
+      const savedCacheData = cacheService.setCatatan(
+        ayatData.userId,
+        ayatData.surahNumber,
+        ayatData.ayatNumber,
+        dataToSave
+      );
+
+      setSavedData(savedCacheData);
+      setIsEditing(false);
+      
+      // Panggil callback ke parent untuk update tampilan
+      if (onSave) {
+        onSave(savedCacheData);
       }
+      
+    } catch (error) {
+      console.error('Error saving catatan:', error);
+      setError(`Gagal menyimpan catatan: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleEdit = () => {
     setIsEditing(true);
+    setError('');
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Hapus catatan untuk ayat ini?')) {
-      setIsLoading(true);
-      try {
-        if (savedData && savedData.id) {
-          await quranDataService.deleteData(savedData.id);
-        }
-        
-        setInputText('');
-        setSavedData(null);
-        setIsEditing(true);
-        
-        if (onSave) {
-          onSave(null); // Notify parent about deletion
-        }
-        
-      } catch (error) {
-        console.error('Error deleting data:', error);
-        alert('Gagal menghapus catatan');
-      } finally {
-        setIsLoading(false);
+    if (!window.confirm('Hapus catatan untuk ayat ini?')) return;
+
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Hapus dari cache - INSTANT
+      cacheService.deleteCatatan(
+        ayatData.userId,
+        ayatData.surahNumber,
+        ayatData.ayatNumber
+      );
+      
+      setInputText('');
+      setSavedData(null);
+      setIsEditing(true);
+      
+      if (onSave) {
+        onSave(null);
       }
+      
+    } catch (error) {
+      console.error('Error deleting catatan:', error);
+      setError(`Gagal menghapus catatan: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -130,6 +127,7 @@ const ModalCatatan = ({
     setInputText('');
     setIsEditing(false);
     setSavedData(null);
+    setError('');
     onHide();
   };
 
@@ -148,6 +146,12 @@ const ModalCatatan = ({
       </Modal.Header>
       
       <Modal.Body style={{ padding: '25px' }}>
+        {error && (
+          <Alert variant="danger" className="mb-3">
+            {error}
+          </Alert>
+        )}
+
         <Form>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">
@@ -168,7 +172,7 @@ const ModalCatatan = ({
             />
             <Form.Text className="text-muted">
               {isEditing 
-                ? "Ketik catatan Anda kemudian klik Simpan" 
+                ? "Ketik catatan Anda kemudian klik Simpan (disimpan di cache lokal)" 
                 : "Klik tombol Edit untuk mengubah catatan"}
             </Form.Text>
           </Form.Group>
@@ -179,7 +183,7 @@ const ModalCatatan = ({
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            <p className="text-muted mt-2">Menyimpan data...</p>
+            <p className="text-muted mt-2">Menyimpan ke cache...</p>
           </div>
         )}
       </Modal.Body>
@@ -221,7 +225,7 @@ const ModalCatatan = ({
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan'
+                  '💾 Simpan ke Cache'
                 )}
               </Button>
             ) : (

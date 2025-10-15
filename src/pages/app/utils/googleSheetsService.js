@@ -1,20 +1,39 @@
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9zYuDUxTXaStygUAIZUhpg-jZ0T5j4KKKGp4vnCKJm0hQttDuYJ3MAMbeGRSPscj5DA/exec';
+// utils/googleSheetsService.js
+
+const API_URL = 'https://script.google.com/macros/s/AKfycbzpgq580cP7wVTdGMEtz4WKau5GT6mhPDK7NDGnMe-3mR_foNDoBfmw_AR5u91blqbR/exec';
 
 class QuranDataService {
   constructor() {
-    this.baseUrl = SCRIPT_URL;
+    this.apiUrl = API_URL;
   }
 
-  // Generic API call method
-  async callAPI(action, data = {}) {
+  // Helper method untuk handle API calls
+  async apiCall(action, data = {}) {
     try {
-      const formData = new URLSearchParams();
-      formData.append('action', action);
-      formData.append('data', JSON.stringify(data));
+      console.log(`Making API call: ${action}`, data);
 
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        body: formData
+      // Build URL dengan parameter
+      const params = new URLSearchParams();
+      params.append('action', action);
+      
+      // Tambahkan semua data sebagai parameter
+      Object.keys(data).forEach(key => {
+        if (data[key] !== undefined && data[key] !== null) {
+          // Jika data adalah object, stringify
+          if (typeof data[key] === 'object') {
+            params.append(key, JSON.stringify(data[key]));
+          } else {
+            params.append(key, data[key]);
+          }
+        }
+      });
+
+      const url = `${this.apiUrl}?${params.toString()}`;
+      console.log('Request URL:', url);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors'
       });
 
       if (!response.ok) {
@@ -22,137 +41,42 @@ class QuranDataService {
       }
 
       const result = await response.json();
-      
-      if (result.success) {
-        return result;
+      console.log(`API Response for ${action}:`, result);
+
+      if (result.status === 'success') {
+        return result.data;
       } else {
-        throw new Error(result.error || 'Unknown error occurred');
+        throw new Error(result.message || `API error in ${action}`);
       }
     } catch (error) {
-      console.error('API Error:', error);
-      // Fallback to localStorage
-      return this.localStorageFallback(action, data);
+      console.error(`Error in ${action}:`, error);
+      throw error;
     }
   }
 
-  // localStorage fallback
-  localStorageFallback(action, data) {
-    const storageKey = 'quran_app_data';
-    let allData = JSON.parse(localStorage.getItem(storageKey) || '{}');
-    
-    switch(action) {
-      case 'save':
-        const id = data.id || Date.now().toString();
-        const dataToSave = {
-          ...data,
-          id: id,
-          timestamp: new Date().toISOString()
-        };
-        
-        if (!allData[data.user_id]) {
-          allData[data.user_id] = [];
-        }
-        
-        // Remove existing entry if exists
-        allData[data.user_id] = allData[data.user_id].filter(
-          item => !(item.surah === data.surah && item.ayat === data.ayat)
-        );
-        
-        // Add new entry
-        allData[data.user_id].push(dataToSave);
-        localStorage.setItem(storageKey, JSON.stringify(allData));
-        
-        return {
-          success: true,
-          message: 'Data saved to localStorage',
-          id: id,
-          data: dataToSave
-        };
-
-      case 'get':
-        const userData = allData[data.user_id] || [];
-        let filteredData = userData;
-        
-        if (data.surah) {
-          filteredData = filteredData.filter(item => item.surah == data.surah);
-        }
-        if (data.ayat) {
-          filteredData = filteredData.filter(item => item.ayat == data.ayat);
-        }
-        
-        return {
-          success: true,
-          data: filteredData
-        };
-
-      case 'delete':
-        if (allData[data.user_id]) {
-          allData[data.user_id] = allData[data.user_id].filter(
-            item => item.id !== data.id
-          );
-          localStorage.setItem(storageKey, JSON.stringify(allData));
-        }
-        
-        return {
-          success: true,
-          message: 'Data deleted from localStorage'
-        };
-
-      default:
-        return { success: false, error: 'Action not supported' };
-    }
+  // Test koneksi
+  async testConnection() {
+    return await this.apiCall('testConnection');
   }
 
-  // Save data (both makna and catatan)
-  async saveData(data) {
-    return this.callAPI('save', data);
+  // GET - Ambil semua data user
+  async getAllUserData(userId) {
+    return await this.apiCall('getAllUserData', { user_id: userId });
   }
 
-  // Get data with filters
-  async getData(filters = {}) {
-    return this.callAPI('get', filters);
-  }
-
-  // Delete data
-  async deleteData(data) {
-    return this.callAPI('delete', data);
-  }
-
-  // Specific methods for different data types
-  async saveMakna(maknaData) {
-    return this.saveData({
-      ...maknaData,
-      type: 'makna'
-    });
-  }
-
-  async saveCatatan(catatanData) {
-    return this.saveData({
-      ...catatanData,
-      type: 'catatan'
-    });
-  }
-
-  async getMaknaByAyat(userId, surah, ayat) {
-    const result = await this.getData({
+  // POST - Simpan semua data sekaligus
+  async saveAllData(userId, maknaData, catatanData) {
+    return await this.apiCall('saveAllData', {
       user_id: userId,
-      surah: surah,
-      ayat: ayat,
-      type: 'makna'
+      makna: maknaData,
+      catatan: catatanData
     });
-    return result.data && result.data.length > 0 ? result.data[0] : null;
   }
 
-  async getCatatanByAyat(userId, surah, ayat) {
-    const result = await this.getData({
-      user_id: userId,
-      surah: surah,
-      ayat: ayat,
-      type: 'catatan'
-    });
-    return result.data && result.data.length > 0 ? result.data[0] : null;
+  // POST - Hapus semua data user (untuk reset)
+  async clearUserData(userId) {
+    return await this.apiCall('clearUserData', { user_id: userId });
   }
 }
 
-// Export singleton instance
 export const quranDataService = new QuranDataService();
