@@ -248,7 +248,7 @@ function App2({ session }) {
 </div>
 
   <div
-    className="card shadow text-center clickable-card"
+    className="clearfix card shadow text-center clickable-card"
     style={{
       width: "340px",
       maxWidth: "576px",
@@ -280,13 +280,14 @@ function App2({ session }) {
 
             {/* Footer Quote */}
             <div
-              className="card shadow-sm p-4  text-muted small text-center"
+              className="card shadow-sm p-4 text-muted small center"
               style={{
-              marginTop: "2rem",
+              marginTop: "25px",
                 width: "340px",
-      maxWidth: "576px",
-                margin: "0 auto",
-                background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(245,245,245,0.6))",
+               maxWidth: "576px",
+                marginLeft: "auto",
+    marginRight: "auto",   
+    background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(245,245,245,0.6))",
                 backdropFilter: "blur(6px)",
                 borderRadius: "12px",
               }}
