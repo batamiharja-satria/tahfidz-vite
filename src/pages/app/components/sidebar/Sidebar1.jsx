@@ -470,7 +470,7 @@ const Sidebar1 = forwardRef(({
               onClick={handleLogout}
               className="nav-link text-white"
             >
-              KELUAR
+              LOGOUT
             </div>
           </li>
         )}

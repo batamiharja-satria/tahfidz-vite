@@ -184,18 +184,21 @@ function App2({ session }) {
 
         {/* Kartu Fitur */}
 <div className="d-flex flex-column align-items-center gap-3 mt-4">
+  
+  <div class="row text-center">
   <div
-    className="card shadow text-center clickable-card"
+    className="card shadow text-center clickable-card col-sm-5"
     style={{
-      width: "100%",
-      maxWidth: "600px",
+      width: "165px",
+      
       cursor: "pointer",
       background: "linear-gradient(135deg, rgba(40,167,69,0.15), rgba(23,162,184,0.15))",
       backdropFilter: "blur(8px)",
       border: "1px solid rgba(255,255,255,0.2)",
       borderRadius: "15px",
       transition: "all 0.3s ease",
-      padding: "2rem 1.5rem"
+      padding: "1.2rem 1.2rem",
+      margin:"5px"
     }}
     onClick={() => {
       navigate('/app2/app/fitur1');
@@ -210,21 +213,22 @@ function App2({ session }) {
     }}
   >
     <h5 className="mb-2">📖 Tahfidz</h5>
-    <p className="small text-muted mb-0">Mengingat hafalan Al-Qur'an</p>
+    
   </div>
 
   <div
-    className="card shadow text-center clickable-card"
+    className="card shadow text-center clickable-card col-sm-5"
     style={{
-      width: "100%",
-      maxWidth: "600px",
+      width: "165px",
+      
       cursor: "pointer",
       background: "linear-gradient(135deg, rgba(23,162,184,0.15), rgba(40,167,69,0.15))",
       backdropFilter: "blur(8px)",
       border: "1px solid rgba(255,255,255,0.2)",
       borderRadius: "15px",
       transition: "all 0.3s ease",
-      padding: "2rem 1.5rem"
+      padding: "1.2rem 1.2rem",
+      margin:"5px"
     }}
     onClick={() => {
       navigate('/app2/app/fitur2');
@@ -239,22 +243,23 @@ function App2({ session }) {
     }}
   >
     <h5 className="mb-2">🎧 Istima'</h5>
-    <p className="small text-muted mb-0">Mendengarkan Al-Qur'an</p>
-  </div>
 
+  </div>
+</div>
 
   <div
     className="card shadow text-center clickable-card"
     style={{
-      width: "100%",
-      maxWidth: "600px",
+      width: "340px",
+      maxWidth: "576px",
       cursor: "pointer",
       background: "linear-gradient(135deg, rgba(23,162,184,0.15), rgba(40,167,69,0.15))",
       backdropFilter: "blur(8px)",
       border: "1px solid rgba(255,255,255,0.2)",
       borderRadius: "15px",
       transition: "all 0.3s ease",
-      padding: "2rem 1.5rem"
+      padding: "1.5rem 1.5rem",
+      marginTop: "0.2rem"
     }}
     onClick={() => {
       navigate('/app2/app/fitur3');
@@ -269,15 +274,17 @@ function App2({ session }) {
     }}
   >
      <h5 className="mb-2">📝 Ma'na</h5>
-    <p className="small text-muted mb-0">Mema'nai Al-Qur'an</p>
+
   </div>
 </div>
 
             {/* Footer Quote */}
             <div
-              className="card shadow-sm p-4 mt-5 text-muted small text-center"
+              className="card shadow-sm p-4  text-muted small text-center"
               style={{
-                maxWidth: "600px",
+              marginTop: "2rem",
+                width: "340px",
+      maxWidth: "576px",
                 margin: "0 auto",
                 background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(245,245,245,0.6))",
                 backdropFilter: "blur(6px)",
@@ -633,6 +640,22 @@ function App2({ session }) {
                             e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
                           }}
                         >
+                          <span
+  onClick={() => {
+    navigator.clipboard.writeText('1090020833075');
+    alert('Nomor rekening berhasil disalin!');
+  }}
+  style={{
+    position: 'absolute',
+    top: '10px',
+    right: '15px',
+    cursor: 'pointer',
+    fontSize: '12px'
+  }}
+>
+  📋 salin
+</span>
+                          
                           <div className="card-body py-4">
                             <div className="d-flex align-items-center mb-3">
                               <div 
@@ -653,13 +676,7 @@ function App2({ session }) {
                             </div>
                             <p className="small text-muted mb-0 text-start">
                               1090020833075 - SATRIA BATAMIHARJA
-                              <span
-        onClick={() => {
-          navigator.clipboard.writeText('1090020833075');
-          alert('Nomor rekening berhasil disalin!');
-        }} >
-        <span style={{marginLeft:'2px'}}> 📋</span>
-      </span>
+                             
                             </p>
                           </div>
                         </div>
