@@ -45,7 +45,7 @@ const ModalCatatan = ({
             }
           }
         } catch (error) {
-          console.error('Error loading catatan from IndexedDB:', error);
+          console.error('Error loading catatan from cache:', error);
           if (isMounted) {
             setError('Gagal memuat catatan dari cache');
           }
@@ -62,7 +62,7 @@ const ModalCatatan = ({
 
   const handleSave = async () => {
     if (!inputText.trim()) {
-      setError('Catatan tidak boleh kosong');
+      setError('Keterangan tidak boleh kosong');
       return;
     }
 
@@ -162,13 +162,13 @@ const ModalCatatan = ({
       
       <Modal.Body style={{ padding: '12px' }}>
         {error && (
-          <Alert variant="danger" className="mb-3">
+          <Alert variant="danger" className="mb-1">
             {error}
           </Alert>
         )}
 
         <Form>
-          <Form.Group className="mb-3">
+          <Form.Group className="mb-0">
             <Form.Label >
              
             </Form.Label>
@@ -186,7 +186,7 @@ const ModalCatatan = ({
             />
             <Form.Text className="text-muted">
               {isEditing 
-                ? "Jumlah kata untuk keterangan tidak terbatas" 
+                ? "Jumlah huruf untuk keterangan tidak terbatas" 
                 : "Klik tombol Edit untuk mengubah keterangan"}
             </Form.Text>
           </Form.Group>
@@ -197,12 +197,12 @@ const ModalCatatan = ({
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            <p className="text-muted mt-2">Menyimpan ke IndexedDB...</p>
+            <p className="text-muted mt-2">Menyimpan ke cache...</p>
           </div>
         )}
       </Modal.Body>
       
-      <Modal.Footer style={{ borderTop: '1px solid #dee2e6', padding: '20px' }}>
+      <Modal.Footer style={{ borderTop: '1px solid #dee2e6', padding: '15px' }}>
         <div className="d-flex justify-content-between w-100">
           <div>
             {savedData && !isEditing && (
@@ -239,7 +239,7 @@ const ModalCatatan = ({
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan ke IndexedDB'
+                  '💾 Simpan ke cache'
                 )}
               </Button>
             ) : (

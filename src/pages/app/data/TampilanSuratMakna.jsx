@@ -447,9 +447,9 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
       borderRadius: '6px',
       transition: 'all 0.3s ease',
       display: 'inline-block',
-      backgroundColor: hasMakna ? '#e8f5e8' : 'transparent',
-      border: hasMakna ? '2px solid #4caf50' : '1px solid transparent',
-      boxShadow: hasMakna ? '0 2px 6px rgba(76, 175, 80, 0.3)' : 'none',
+      backgroundColor: hasMakna ? 'white' : 'transparent',
+      border: hasMakna ? '1px solid transparent' : '1px solid transparent',
+      boxShadow: hasMakna ? '0 0px 0px white' : 'none',
       position: 'relative'
     };
   };
@@ -467,8 +467,8 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
       boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       direction: 'rtl',
       position:'relative',
-      border: hasCatatan ? '2px solid #007bff' : '1px solid #f0f0f0',
-      backgroundColor: hasCatatan ? '#f0f8ff' : 'white'
+      border: hasCatatan ? '1px solid white' : '1px solid white',
+      backgroundColor: hasCatatan ? 'white' : 'white'
     };
   };
 
@@ -481,7 +481,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
       position: 'absolute',
       top: '8px',
       left: '8px',
-      background: hasCatatan ? '#007bff' : 'none',
+      background: hasCatatan ? 'white' : 'none',
       border: 'none',
       cursor: 'pointer',
       fontSize: '1.2rem',
@@ -492,6 +492,16 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
       color: hasCatatan ? 'white' : 'inherit'
     };
   };
+  
+  // ubah angka ke Arab
+const toArabicNumber = (number) => {
+  const arabicDigits = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+  return number
+    .toString()
+    .split("")
+    .map((d) => arabicDigits[parseInt(d)])
+    .join("");
+};
 
   // DAPATKAN INFO SURAT DARI SURATCONFIG UNTUK HEADER
   const getSuratInfo = () => {
@@ -524,7 +534,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
           {session?.user?.id && (
             <div className="d-flex gap-2">
               <Button 
-                variant="outline-danger" 
+                variant="danger" 
                 size="sm" 
                 onClick={handleResetCache}
                 disabled={syncStatus.loading}
@@ -533,7 +543,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                 🔄 Reset
               </Button>
               <Button 
-                variant="outline-primary" 
+                variant="primary" 
                 size="sm" 
                 onClick={handleLoadFromDatabase}
                 disabled={syncStatus.loading}
@@ -559,7 +569,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan ke cache'
+                  '💾 Simpan ke database'
                 )}
               </Button>
             </div>
@@ -627,14 +637,14 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                         <span 
                           style={{
                             position: 'absolute',
-                            top: '-5px',
-                            right: '-5px',
+                            top: '0px',
+                            right: '0px',
                             background: '#28a745',
-                            color: 'white',
+                            color: '#28a745',
                             borderRadius: '50%',
-                            width: '12px',
-                            height: '12px',
-                            fontSize: '8px',
+                            width: '5px',
+                            height: '5px',
+                            fontSize: '4px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -648,19 +658,21 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                     {/* NOMOR AYAT */}
                     <div style={{
                       display: 'inline-block',
-                      background: '#965430',
-                      color: 'white',
-                      width: '30px',
-                      height: '30px',
+                      background: 'white',
+                      color: 'black',
+                      width: '25px',
+                      height: '25px',
                       borderRadius: '50%',
                       textAlign: 'center',
-                      lineHeight: '30px',
+                      lineHeight: '20px',
                       marginLeft: '10px',
                       fontSize: '0.8rem',
                       fontWeight: 'bold',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}>
-                      {ayat.nomor}
+                      
+                      {toArabicNumber(ayat.nomor)}
+                     
                     </div>
                     
                     {/* TEKS AYAT DENGAN KATA-KATA YANG BISA DIKLIK */}
@@ -697,11 +709,11 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                               <sup 
                                 style={{
                                   color: '#4caf50',
-                                  fontSize: '0.7rem',
+                                  fontSize: '0.6rem',
                                   fontWeight: 'bold',
                                   position: 'absolute',
-                                  top: '-2px',
-                                  right: '-2px'
+                                  top: '15px',
+                                  right: '-1px'
                                 }}
                               >
                                 ●
