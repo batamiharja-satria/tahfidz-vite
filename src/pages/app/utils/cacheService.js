@@ -48,6 +48,11 @@ class CacheService {
   async deleteMakna(userId, surah, ayat, kataIndex) {
     await this.init();
     const key = this.generateKey(userId, surah, ayat, kataIndex);
+    
+    // TANDAI SEBAGAI PENGHAPUSAN YANG PERLU DISINKRONKASI
+    await this.markForDeletion('makna', key);
+    
+    // Hapus dari store makna
     return await indexedDBService.delete('makna', key);
   }
 
@@ -72,6 +77,11 @@ class CacheService {
   async deleteCatatan(userId, surah, ayat) {
     await this.init();
     const key = this.generateKey(userId, surah, ayat);
+    
+    // TANDAI SEBAGAI PENGHAPUSAN YANG PERLU DISINKRONKASI
+    await this.markForDeletion('catatan', key);
+    
+    // Hapus dari store catatan
     return await indexedDBService.delete('catatan', key);
   }
 
@@ -96,11 +106,34 @@ class CacheService {
     return await indexedDBService.getAllByUser('catatan', userId);
   }
 
+  // METHOD BARU: Tracking deletions
+  async markForDeletion(storeName, key) {
+    await this.init();
+    const deletionRecord = {
+      key: key,
+      storeName: storeName,
+      deletedAt: new Date().toISOString(),
+      _isDirty: true
+    };
+    return await indexedDBService.set('deletions', key, deletionRecord);
+  }
+
+  async getPendingDeletions() {
+    await this.init();
+    return await indexedDBService.getAll('deletions');
+  }
+
+  async clearPendingDeletions() {
+    await this.init();
+    await indexedDBService.clear('deletions');
+  }
+
   async getUnsavedChanges() {
     await this.init();
-    const [allMakna, allCatatan] = await Promise.all([
+    const [allMakna, allCatatan, pendingDeletions] = await Promise.all([
       this.getAllMakna(),
-      this.getAllCatatan()
+      this.getAllCatatan(),
+      this.getPendingDeletions()
     ]);
 
     const unsavedMakna = Object.entries(allMakna)
@@ -119,8 +152,17 @@ class CacheService {
 
     return {
       makna: unsavedMakna,
-      catatan: unsavedCatatan
+      catatan: unsavedCatatan,
+      deletions: pendingDeletions
     };
+  }
+
+  async hasUnsavedChanges() {
+    await this.init();
+    const unsaved = await this.getUnsavedChanges();
+    return Object.keys(unsaved.makna).length > 0 || 
+           Object.keys(unsaved.catatan).length > 0 || 
+           Object.keys(unsaved.deletions).length > 0;
   }
 
   async markAllAsSaved() {
@@ -147,20 +189,28 @@ class CacheService {
       }
     });
 
+    // Clear pending deletions
+    updatePromises.push(this.clearPendingDeletions());
+
     await Promise.all(updatePromises);
     await indexedDBService.setMetadata('last_sync', new Date().toISOString());
+    
+    // Return updated stats untuk immediate update
+    return await this.getStats();
   }
 
   // IMPORT/EXPORT
   async importFromDatabase(data) {
     await this.init();
     await indexedDBService.importAllData(data);
-    await this.markAllAsSaved();
+    const stats = await this.markAllAsSaved();
+    return stats;
   }
 
   async exportForDatabase() {
     await this.init();
     const allData = await indexedDBService.exportAllData();
+    const pendingDeletions = await this.getPendingDeletions();
 
     // Remove cache metadata before sending to database
     const cleanMakna = Object.entries(allData.makna).reduce((acc, [key, value]) => {
@@ -177,7 +227,8 @@ class CacheService {
 
     return {
       makna: cleanMakna,
-      catatan: cleanCatatan
+      catatan: cleanCatatan,
+      deletions: pendingDeletions
     };
   }
 
@@ -185,7 +236,9 @@ class CacheService {
   async hasUnsavedChanges() {
     await this.init();
     const unsaved = await this.getUnsavedChanges();
-    return Object.keys(unsaved.makna).length > 0 || Object.keys(unsaved.catatan).length > 0;
+    return Object.keys(unsaved.makna).length > 0 || 
+           Object.keys(unsaved.catatan).length > 0 || 
+           Object.keys(unsaved.deletions).length > 0;
   }
 
   async getStats() {
@@ -196,14 +249,49 @@ class CacheService {
     return {
       ...stats,
       unsavedMakna: Object.keys(unsaved.makna).length,
-      unsavedCatatan: Object.keys(unsaved.catatan).length
+      unsavedCatatan: Object.keys(unsaved.catatan).length,
+      pendingDeletions: Object.keys(unsaved.deletions).length,
+      totalUnsaved: Object.keys(unsaved.makna).length + 
+                    Object.keys(unsaved.catatan).length + 
+                    Object.keys(unsaved.deletions).length
     };
+  }
+
+  // METHOD BARU: Reset cache untuk user tertentu
+  async resetUserCache(userId) {
+    await this.init();
+    
+    // Hapus semua data untuk user tertentu
+    const [userMakna, userCatatan] = await Promise.all([
+      this.getAllMaknaByUser(userId),
+      this.getAllCatatanByUser(userId)
+    ]);
+
+    const deletionPromises = [
+      ...Object.keys(userMakna).map(key => indexedDBService.delete('makna', key)),
+      ...Object.keys(userCatatan).map(key => indexedDBService.delete('catatan', key))
+    ];
+
+    await Promise.all(deletionPromises);
+    
+    // Juga hapus deletions untuk user ini
+    const allDeletions = await this.getPendingDeletions();
+    const userDeletions = Object.keys(allDeletions).filter(key => key.startsWith(userId + '_'));
+    const userDeletionPromises = userDeletions.map(key => 
+      indexedDBService.delete('deletions', key)
+    );
+    
+    await Promise.all(userDeletionPromises);
+    
+    console.log(`Cache reset for user: ${userId}`);
+    return await this.getStats();
   }
 
   async clear() {
     await this.init();
     await indexedDBService.clear('makna');
     await indexedDBService.clear('catatan');
+    await indexedDBService.clear('deletions');
     console.log('Cache cleared successfully');
   }
 

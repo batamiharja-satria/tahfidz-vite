@@ -120,7 +120,7 @@ const ModalMakna = ({
     setError('');
     
     try {
-      // Hapus dari IndexedDB - ASYNC
+      // Hapus dari IndexedDB - ASYNC (method sudah diupdate untuk tracking deletions)
       await cacheService.deleteMakna(
         kataData.userId,
         kataData.surahNumber,
@@ -156,62 +156,33 @@ const ModalMakna = ({
     <Modal show={show} onHide={handleClose} centered size="lg" backdrop="static">
       <Modal.Header closeButton style={{ borderBottom: '2px solid #28a745' }}>
         <Modal.Title className="d-flex align-items-center">
-          <span style={{ marginRight: '10px' }}>📖</span>
-          <div>
-            <div>Edit Makna Kata</div>
-            <small className="text-muted" style={{ fontSize: '0.8rem' }}>
-              Surah {kataData?.surahNumber} : Ayat {kataData?.ayatNumber}
-            </small>
-          </div>
+          <div style={{ marginLeft: '10px' }}>{kataData.kataText}</div> 
         </Modal.Title>
       </Modal.Header>
       
-      <Modal.Body style={{ padding: '25px' }}>
+      <Modal.Body style={{ padding: '12px' }}>
         {error && (
           <Alert variant="danger" className="mb-3">
             {error}
           </Alert>
         )}
 
-        {kataData && (
-          <div className="text-center mb-4">
-            <div style={{ 
-              fontSize: '2rem',
-              fontFamily: "'Traditional Arabic', 'Lateef', 'Amiri', serif",
-              marginBottom: '10px',
-              padding: '15px',
-              backgroundColor: '#f8f9fa',
-              borderRadius: '8px',
-              border: '1px solid #e9ecef',
-              lineHeight: '1.8'
-            }}>
-              {kataData.kataText}
-            </div>
-            
-            <Badge bg="secondary" className="mb-2">
-              Kata ke-{kataData.kataIndex + 1}
-            </Badge>
-            
-            {savedData && (
-              <Badge bg="success" className="ms-2">
-                ✅ Tersimpan di IndexedDB
-              </Badge>
-            )}
-          </div>
-        )}
+
+
+             
+
 
         <Form>
           <Form.Group className="mb-3">
             <Form.Label className="fw-bold">
-              <span style={{ marginRight: '8px' }}>✍️</span>
-              Makna / Penjelasan Kata:
+
             </Form.Label>
             <Form.Control
               as="textarea"
-              rows={4}
+              rows={5}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Masukkan makna, penjelasan, atau catatan untuk kata ini..."
+              placeholder="Tulis ma'na..."
               disabled={!isEditing || isLoading}
               style={{ 
                 fontSize: '1.1rem',
@@ -220,8 +191,8 @@ const ModalMakna = ({
             />
             <Form.Text className="text-muted">
               {isEditing 
-                ? "Ketik makna kata kemudian klik Simpan (disimpan di IndexedDB)" 
-                : "Klik tombol Edit untuk mengubah makna"}
+                ? "Jumlah huruf untuk ma'na tidak terbatas" 
+                : "Klik tombol Edit untuk mengubah ma'na"}
             </Form.Text>
           </Form.Group>
         </Form>
@@ -231,7 +202,7 @@ const ModalMakna = ({
             <div className="spinner-border text-success" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            <p className="text-muted mt-2">Menyimpan ke IndexedDB...</p>
+            <p className="text-muted mt-2">Menyimpan ke cache...</p>
           </div>
         )}
       </Modal.Body>
@@ -273,7 +244,7 @@ const ModalMakna = ({
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan ke IndexedDB'
+                  '💾 Simpan ke cache'
                 )}
               </Button>
             ) : (

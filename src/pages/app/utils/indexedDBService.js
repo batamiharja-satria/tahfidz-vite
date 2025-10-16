@@ -1,7 +1,7 @@
 class IndexedDBService {
   constructor() {
     this.dbName = 'QuranCacheDB';
-    this.version = 1;
+    this.version = 2; // Naikkan versi karena ada perubahan schema
     this.db = null;
     this.isInitialized = false;
   }
@@ -44,6 +44,13 @@ class IndexedDBService {
 
         if (!db.objectStoreNames.contains('metadata')) {
           db.createObjectStore('metadata', { keyPath: 'key' });
+        }
+
+        // TAMBAHKAN STORE UNTUK DELETIONS
+        if (!db.objectStoreNames.contains('deletions')) {
+          const deletionsStore = db.createObjectStore('deletions', { keyPath: 'key' });
+          deletionsStore.createIndex('storeName', 'storeName', { unique: false });
+          deletionsStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
       };
     });
@@ -143,14 +150,16 @@ class IndexedDBService {
   async getStats() {
     await this.init();
     
-    const [maknaData, catatanData] = await Promise.all([
+    const [maknaData, catatanData, deletionsData] = await Promise.all([
       this.getAll('makna'),
-      this.getAll('catatan')
+      this.getAll('catatan'),
+      this.getAll('deletions')
     ]);
 
     return {
       totalMakna: Object.keys(maknaData).length,
       totalCatatan: Object.keys(catatanData).length,
+      totalDeletions: Object.keys(deletionsData).length,
       totalSize: await this.estimateSize(),
       lastSync: await this.getMetadata('last_sync')
     };
@@ -198,18 +207,20 @@ class IndexedDBService {
   }
 
   async exportAllData() {
-    const [makna, catatan] = await Promise.all([
+    const [makna, catatan, deletions] = await Promise.all([
       this.getAll('makna'),
-      this.getAll('catatan')
+      this.getAll('catatan'),
+      this.getAll('deletions')
     ]);
 
-    return { makna, catatan };
+    return { makna, catatan, deletions };
   }
 
   async importAllData(data) {
     // Clear existing data first
     await this.clear('makna');
     await this.clear('catatan');
+    await this.clear('deletions');
 
     // Import new data
     const maknaPromises = Object.entries(data.makna || {}).map(([key, value]) => 
@@ -220,7 +231,11 @@ class IndexedDBService {
       this.set('catatan', key, value)
     );
 
-    await Promise.all([...maknaPromises, ...catatanPromises]);
+    const deletionPromises = Object.entries(data.deletions || {}).map(([key, value]) =>
+      this.set('deletions', key, value)
+    );
+
+    await Promise.all([...maknaPromises, ...catatanPromises, ...deletionPromises]);
   }
 }
 

@@ -29,6 +29,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     type: 'info' 
   });
   const [cacheStats, setCacheStats] = useState({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // REF UNTUK CONTAINER AYAT - SCROLL POSITION
   const ayatContainerRef = useRef(null);
@@ -100,12 +101,21 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     }
   }, [nomor, userStatus]);
 
-  // LOAD DATA DARI INDEXEDDB
+  // LOAD DATA DARI INDEXEDDB - UPDATE: Reset ketika session berubah
   useEffect(() => {
     let isMounted = true;
 
     const loadCacheData = async () => {
-      if (!isSuratAktif || !session?.user?.id) return;
+      if (!isSuratAktif || !session?.user?.id) {
+        // Reset state jika tidak ada user atau surat tidak aktif
+        if (isMounted) {
+          setMaknaStorage({});
+          setCatatanStorage({});
+          setCacheStats({});
+          setHasUnsavedChanges(false);
+        }
+        return;
+      }
 
       const userId = session.user.id;
       
@@ -125,6 +135,12 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
         await updateCacheStats();
       } catch (error) {
         console.error('Error loading cache data from IndexedDB:', error);
+        if (isMounted) {
+          setMaknaStorage({});
+          setCatatanStorage({});
+          setCacheStats({});
+          setHasUnsavedChanges(false);
+        }
       }
     };
 
@@ -133,15 +149,20 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     return () => {
       isMounted = false;
     };
-  }, [isSuratAktif, session]);
+  }, [isSuratAktif, session]); // Tambah session sebagai dependency
 
   // UPDATE CACHE STATS
   const updateCacheStats = async () => {
     try {
       const stats = await cacheService.getStats();
+      const unsaved = await cacheService.hasUnsavedChanges();
+      
       setCacheStats(stats);
+      setHasUnsavedChanges(unsaved);
     } catch (error) {
       console.error('Error updating cache stats:', error);
+      setCacheStats({});
+      setHasUnsavedChanges(false);
     }
   };
 
@@ -217,7 +238,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
           return newStorage;
         });
       }
-      await updateCacheStats();
+      await updateCacheStats(); // Immediate update
     } catch (error) {
       console.error('Error updating makna storage:', error);
     }
@@ -262,13 +283,13 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
           return newStorage;
         });
       }
-      await updateCacheStats();
+      await updateCacheStats(); // Immediate update
     } catch (error) {
       console.error('Error updating catatan storage:', error);
     }
   };
 
-  // FUNGSI: Simpan semua data ke database
+  // FUNGSI: Simpan semua data ke database (UPDATE: Immediate state update)
   const handleSaveToDatabase = async () => {
     if (!session?.user?.id) {
       alert('Silakan login terlebih dahulu');
@@ -283,12 +304,22 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
       
       console.log('Saving to database:', exportData);
 
-      const result = await quranDataService.saveAllData(userId, exportData.makna, exportData.catatan);
+      // Kirim data termasuk deletions ke Google Sheets
+      const result = await quranDataService.saveAllData(
+        userId, 
+        exportData.makna, 
+        exportData.catatan, 
+        exportData.deletions
+      );
       
       if (result) {
-        // Mark as saved
-        await cacheService.markAllAsSaved();
-        await updateCacheStats();
+        // Mark as saved - ini akan clear semua flag _isDirty dan deletions
+        // DAN return updated stats untuk immediate update
+        const updatedStats = await cacheService.markAllAsSaved();
+        
+        // IMMEDIATE UPDATE STATE
+        setCacheStats(updatedStats);
+        setHasUnsavedChanges(false);
         
         setSyncStatus({ 
           loading: false, 
@@ -311,7 +342,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
     }
   };
 
-  // FUNGSI: Muat data dari database ke cache
+  // FUNGSI: Muat data dari database ke cache (UPDATE: Immediate state update)
   const handleLoadFromDatabase = async () => {
     if (!session?.user?.id) {
       alert('Silakan login terlebih dahulu');
@@ -328,7 +359,8 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
         // Process and import data
         const processedData = {
           makna: {},
-          catatan: {}
+          catatan: {},
+          deletions: {}
         };
 
         // Process the data into cache format
@@ -344,10 +376,14 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
           }
         });
 
-        // Import to IndexedDB
-        await cacheService.importFromDatabase(processedData);
+        // Import to IndexedDB dan dapatkan updated stats
+        const updatedStats = await cacheService.importFromDatabase(processedData);
         
-        // Update local state
+        // IMMEDIATE UPDATE STATE
+        setCacheStats(updatedStats);
+        setHasUnsavedChanges(false);
+
+        // Update local state dengan data terbaru
         const [userMakna, userCatatan] = await Promise.all([
           cacheService.getAllMaknaByUser(userId),
           cacheService.getAllCatatanByUser(userId)
@@ -355,7 +391,6 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
 
         setMaknaStorage(userMakna);
         setCatatanStorage(userCatatan);
-        await updateCacheStats();
         
         setSyncStatus({ 
           loading: false, 
@@ -375,6 +410,28 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
         message: `❌ Gagal memuat: ${error.message}`, 
         type: 'danger' 
       });
+    }
+  };
+
+  // FUNGSI: Reset cache untuk user saat ini
+  const handleResetCache = async () => {
+    if (!session?.user?.id) return;
+    
+    if (window.confirm('Reset cache untuk user saat ini? Data yang belum disimpan akan hilang.')) {
+      try {
+        const userId = session.user.id;
+        const updatedStats = await cacheService.resetUserCache(userId);
+        
+        // Update state immediately
+        setCacheStats(updatedStats);
+        setHasUnsavedChanges(false);
+        setMaknaStorage({});
+        setCatatanStorage({});
+        
+        console.log('Cache reset for user:', userId);
+      } catch (error) {
+        console.error('Error resetting cache:', error);
+      }
     }
   };
 
@@ -458,43 +515,23 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
   };
 
   const suratInfo = getSuratInfo();
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  // Check for unsaved changes
-  useEffect(() => {
-    const checkUnsavedChanges = async () => {
-      try {
-        const unsaved = await cacheService.hasUnsavedChanges();
-        setHasUnsavedChanges(unsaved);
-      } catch (error) {
-        console.error('Error checking unsaved changes:', error);
-      }
-    };
-
-    checkUnsavedChanges();
-  }, [maknaStorage, catatanStorage]);
 
   return (
     <div className="d-flex flex-column vw-100 vh-100">
       {/* HEADER DENGAN TOMBOL SYNC */}
       <div style={{ padding: '10px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
         <Container className="d-flex justify-content-between align-items-center">
-          <div>
-            <strong>Fitur 3: Tafsir Kata</strong>
-            {cacheStats && (
-              <small className="text-muted ms-2">
-                (IndexedDB: {cacheStats.totalMakna || 0} makna, {cacheStats.totalCatatan || 0} catatan)
-                {hasUnsavedChanges && (
-                  <Badge bg="warning" className="ms-2">
-                    Ada Perubahan Belum Disimpan
-                  </Badge>
-                )}
-              </small>
-            )}
-          </div>
-          
           {session?.user?.id && (
             <div className="d-flex gap-2">
+              <Button 
+                variant="outline-danger" 
+                size="sm" 
+                onClick={handleResetCache}
+                disabled={syncStatus.loading}
+                title="Reset cache untuk user saat ini"
+              >
+                🔄 Reset
+              </Button>
               <Button 
                 variant="outline-primary" 
                 size="sm" 
@@ -507,7 +544,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                     Memuat...
                   </>
                 ) : (
-                  '📥 Muat dari Database'
+                  '📥 Muat'
                 )}
               </Button>
               <Button 
@@ -522,22 +559,33 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan ke Database'
+                  '💾 Simpan ke cache'
                 )}
               </Button>
             </div>
           )}
         </Container>
 
-        {/* SYNC STATUS */}
-        {syncStatus.message && (
-          <Container className="mt-2">
-            <Alert variant={syncStatus.type} className="py-2 mb-0">
-              <small>{syncStatus.message}</small>
-            </Alert>
-          </Container>
-        )}
+
       </div>
+      <div style={{textAlign:"left", marginTop:"8px"}}>
+            {cacheStats && (
+              <small className="text-muted ">
+                {hasUnsavedChanges && (
+                  <Badge bg="warning" className="ms-4">
+                    Ada Perubahan Belum Disimpan
+                  </Badge>
+                )}
+              </small>
+            )}
+                    {/* SYNC STATUS */}
+        {syncStatus.message && (
+
+            <p variant={syncStatus.type} className="py-0 mb-0 ms-4">
+              <small>{syncStatus.message}</small>
+            </p>
+        )}
+          </div>
 
       {/* REF DI CONTAINER AYAT */}
       <div ref={ayatContainerRef} className="flex-grow-1 overflow-auto">
@@ -552,25 +600,7 @@ const TampilanSuratMakna = ({ nomor, session, userStatus }) => {
             </p>
           ) : (
             <>
-              {/* HEADER SURAT INFO */}
-              {suratInfo && (
-                <div style={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  padding: '15px 20px',
-                  borderRadius: '10px',
-                  marginBottom: '20px',
-                  textAlign: 'center',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-                }}>
-                  <h4 style={{ margin: 0, fontWeight: 'bold' }}>
-                    {suratInfo.nama_latin} - {suratInfo.arti}
-                  </h4>
-                  <p style={{ margin: '5px 0 0 0', opacity: 0.9 }}>
-                    {suratInfo.jumlah_ayat} Ayat • {suratInfo.tempat_turun}
-                  </p>
-                </div>
-              )}
+
 
               {/* AYAT-AYAT DENGAN PEMOTONGAN KATA */}
               {data.map((ayat) => {

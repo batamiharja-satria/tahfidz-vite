@@ -1,6 +1,6 @@
 // Di file: src/components/sidebar/Sidebar1.jsx
 
-// PERBAIKAN: Update basePath logic dan navigation untuk fitur3
+// PERBAIKAN: Hanya sembunyikan persentase di fitur3, fitur1 & fitur2 tetap tampil
 import React, { useEffect, useState, forwardRef } from "react";
 import { Link, useLocation, useNavigate} from "react-router-dom";
 import { Modal, Button, Form } from "react-bootstrap";
@@ -75,7 +75,7 @@ const Sidebar1 = forwardRef(({
     toggleSidebar();
   };
 
-  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN basePath yang benar
+  // ✅ PERBAIKAN: Handle pindah fitur - GUNAKAN basePath yang benar (tidak dipakai)
   const handlePindahFitur = (targetFitur) => {
     window.dispatchEvent(new CustomEvent('stopAllAudio'));
     toggleSidebar();
@@ -398,6 +398,7 @@ const Sidebar1 = forwardRef(({
         )}
 
         {/* ✅ PERBAIKAN: Premium Aktif dengan Progress - gunakan actualBasePath */}
+        {/* ✅ PERUBAHAN: Hanya sembunyikan persentase untuk fitur3 */}
         {Object.keys(groupedByPremium).map((premiumKey) => {
           const premiumProgress = getPremiumProgress(groupedByPremium[premiumKey]);
           const progressColor = getProgressColor(premiumProgress);
@@ -409,11 +410,15 @@ const Sidebar1 = forwardRef(({
                 onClick={() => setOpenPremium(openPremium === premiumKey ? null : premiumKey)}
               >
                 <span>
-                  {premiumKey.replace('premium', 'Premium ')} (
-                  <span style={{ color: progressColor, fontWeight: 'bold' }}>
-                    {premiumProgress}%
-                  </span>
-                  )
+                  {premiumKey.replace('premium', 'Premium ')}
+                  {/* ✅ PERUBAHAN: Hanya sembunyikan persentase untuk fitur3 */}
+                  {currentFitur !== 'fitur3' && (
+                    <> (
+                      <span style={{ color: progressColor, fontWeight: 'bold' }}>
+                        {premiumProgress}%
+                      </span>
+                    )</>
+                  )}
                 </span>
                 <span
                   style={{
@@ -438,11 +443,15 @@ const Sidebar1 = forwardRef(({
                           style={styles.navLink}
                           onClick={() => handleSuratClickWithBase(surat.nomor)}
                         >
-                          {surat.nomor} {surat.nama_latin || surat.nama} (
-                          <span style={{ color: suratProgressColor, fontWeight: 'bold' }}>
-                            {suratProgress}%
-                          </span>
-                          )
+                          {surat.nomor} {surat.nama_latin || surat.nama}
+                          {/* ✅ PERUBAHAN: Hanya sembunyikan persentase untuk fitur3 */}
+                          {currentFitur !== 'fitur3' && (
+                            <> (
+                              <span style={{ color: suratProgressColor, fontWeight: 'bold' }}>
+                                {suratProgress}%
+                              </span>
+                            )</>
+                          )}
                         </button>
                       </li>
                     );

@@ -83,7 +83,7 @@ const Panduan3 = () => {
       
       <div className="mb-4" style={{ marginBottom: "2rem" }}>
         <p className="text-center text-muted" style={{ textAlign: "justify", textAlignLast: "center" }}>
-          Fitur ini memungkinkan Anda <strong>memaknai dan menulis keterangan setiap ayat Al-Quran (dengan Manqul, Musnad, Muttashil).</strong> 
+          Fitur ini memungkinkan Anda <strong>mema'nai dan menulis keterangan setiap ayat Al-Quran</strong> 
         </p>
       </div>
 
@@ -94,26 +94,20 @@ const Panduan3 = () => {
             <strong>Pilih Surat</strong> - Buka sidebar, pilih surat dari premium yang aktif
           </li>
           <li style={{ marginBottom: "0.8rem" }}>
-            <strong>Ma'nai </strong> - Klik pada kata Arab untuk membuka editor makna:
+            <strong>Ma'nai </strong> - Klik pada kata Arab untuk membuka editor ma'na dan icon  📝  untuk keterangan ayat:
             <ul className="small mt-2" style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Input Makna</strong> - Ketik arti kata</li>
-              <li style={{ marginBottom: "0.4rem" }}><strong>Simpan</strong> - Data tersimpan di cache</li>
-
-                            
-                            <li style={{ marginBottom: "0.4rem" }}><strong>Jika data cache hilang atau terhapus</strong> - Klik tombol muat data dari database yang ada di header</li>
-                            
-                            <li style={{ marginBottom: "0.4rem" }}><strong>Jangan lupa</strong> - Backup data dengan mengklik tombol backup di header agar jika cache terhapus atau hilang, data bisa dimuat kembali</li>
-              
+              <li style={{ marginBottom: "0.4rem" }}><strong>Input Ma'na</strong> - Ketik arti dan keterangan ayat dengan manqul dan atau menyalin kembali data yang sudah dimanqulkan</li>
             </ul>
           </li>
-          <li style={{ marginBottom: "0.8rem" }}>
-            <strong>Keterangan dan atau catatan Ayat</strong> - Klik ikon 📝 di akhir ayat
-          </li>
-        
+                      <li style={{ marginBottom: "0.4rem" }}><strong>Simpan</strong> - Data tersimpan di cache</li>
+                                        <ul className="small mt-2" style={{ paddingLeft: "1.5rem", marginTop: "0.5rem" }}>
+                            <li style={{ marginBottom: "0.4rem" }}><strong>Jangan lupa</strong> - Cadangkan data dengan mengklik tombol simpan ke database di header agar jika cache terhapus atau hilang, data bisa dimuat kembali (ada info di header jika data belum disimpan dan cukup lakukan sekali setelah selesai dan atau sebelum menutup aplikasi jika ada perubahan data)</li>
+              </ul>
+               
         </ol>
       </div>
 
-     
+     <p style={{ marginBottom: "0.4rem" }}><strong>*Jika data yang pernah disimpan cachenya hilang atau terhapus atau baru login kembali setelah keluar atau ganti akun</strong> - Klik tombol muat data dari database yang ada di header untuk memulihkan data</p>
      
     </div>
   );

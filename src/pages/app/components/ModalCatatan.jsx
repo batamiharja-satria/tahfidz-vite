@@ -153,17 +153,14 @@ const ModalCatatan = ({
     <Modal show={show} onHide={handleClose} centered size="lg" backdrop="static">
       <Modal.Header closeButton style={{ borderBottom: '2px solid #007bff' }}>
         <Modal.Title className="d-flex align-items-center">
-          <span style={{ marginRight: '10px' }}>📝</span>
-          <div>
-            <div>Catatan Ayat</div>
-            <small className="text-muted" style={{ fontSize: '0.8rem' }}>
-              Surah {ayatData?.surahNumber} : Ayat {ayatData?.ayatNumber}
-            </small>
-          </div>
+
+          
+            <div>Keterangan : Ayat {ayatData?.ayatNumber}</div>
+          
         </Modal.Title>
       </Modal.Header>
       
-      <Modal.Body style={{ padding: '25px' }}>
+      <Modal.Body style={{ padding: '12px' }}>
         {error && (
           <Alert variant="danger" className="mb-3">
             {error}
@@ -172,16 +169,15 @@ const ModalCatatan = ({
 
         <Form>
           <Form.Group className="mb-3">
-            <Form.Label className="fw-bold">
-              <span style={{ marginRight: '8px' }}>✍️</span>
-              Catatan untuk Ayat:
+            <Form.Label >
+             
             </Form.Label>
             <Form.Control
               as="textarea"
-              rows={5}
+              rows={11}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Masukkan catatan, penjelasan, atau keterangan tambahan untuk ayat ini..."
+              placeholder="Tulis keterangan..."
               disabled={!isEditing || isLoading}
               style={{ 
                 fontSize: '1.1rem',
@@ -190,8 +186,8 @@ const ModalCatatan = ({
             />
             <Form.Text className="text-muted">
               {isEditing 
-                ? "Ketik catatan Anda kemudian klik Simpan (disimpan di IndexedDB)" 
-                : "Klik tombol Edit untuk mengubah catatan"}
+                ? "Jumlah kata untuk keterangan tidak terbatas" 
+                : "Klik tombol Edit untuk mengubah keterangan"}
             </Form.Text>
           </Form.Group>
         </Form>

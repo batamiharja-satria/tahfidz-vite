@@ -1,5 +1,3 @@
-// utils/googleSheetsService.js
-
 const API_URL = 'https://script.google.com/macros/s/AKfycbyTv6L24baNAE-uNHM-BHb-00utmckYDEWMLsck9Qi2RykUPVkK-i1eEZuRa7L756iD/exec';
 
 class QuranDataService {
@@ -64,12 +62,13 @@ class QuranDataService {
     return await this.apiCall('getAllUserData', { user_id: userId });
   }
 
-  // POST - Simpan semua data sekaligus
-  async saveAllData(userId, maknaData, catatanData) {
+  // POST - Simpan semua data sekaligus (UPDATE: tambah parameter deletions)
+  async saveAllData(userId, maknaData, catatanData, deletionData) {
     return await this.apiCall('saveAllData', {
       user_id: userId,
       makna: maknaData,
-      catatan: catatanData
+      catatan: catatanData,
+      deletions: deletionData
     });
   }
 
