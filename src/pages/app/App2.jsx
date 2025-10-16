@@ -161,7 +161,10 @@ function App2({ session }) {
           >
       
             {/* Header - TEXT CENTER */}
-            <h1 className="fw-bold display-5 mb-2 text-center">Assalamu 'alaikum</h1>
+            <h1 className="  fw-bold display-5 mb-2 text-center"
+            style={{marginTop:"30px"}}
+            
+            >Assalamu 'alaikum</h1>
             <p className="fs-6 text-center">
               Selamat Datang di Aplikasi Qur'an
             </p> 
