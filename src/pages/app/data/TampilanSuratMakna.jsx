@@ -532,16 +532,8 @@ const toArabicNumber = (number) => {
       <div style={{ padding: '10px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
         <Container className="d-flex justify-content-between align-items-center">
           {session?.user?.id && (
-            <div className="d-flex gap-2">
-              <Button 
-                variant="danger" 
-                size="sm" 
-                onClick={handleResetCache}
-                disabled={syncStatus.loading}
-                title="Reset cache untuk user saat ini"
-              >
-                🔄 Reset
-              </Button>
+            <div className="d-flex gap-2 text-center">
+
               <Button 
                 variant="primary" 
                 size="sm" 
@@ -554,7 +546,7 @@ const toArabicNumber = (number) => {
                     Memuat...
                   </>
                 ) : (
-                  '📥 Muat'
+                  '📥 Muat data'
                 )}
               </Button>
               <Button 
@@ -569,7 +561,7 @@ const toArabicNumber = (number) => {
                     Menyimpan...
                   </>
                 ) : (
-                  '💾 Simpan ke database'
+                  '💾 Simpan data'
                 )}
               </Button>
             </div>
