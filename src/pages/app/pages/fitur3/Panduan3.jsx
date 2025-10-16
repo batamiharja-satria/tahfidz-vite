@@ -109,7 +109,8 @@ const Panduan3 = () => {
 
      <p style={{ marginBottom: "0.4rem" }}><strong>*Jika data yang pernah disimpan cachenya hilang atau terhapus atau baru login kembali setelah keluar atau ganti akun</strong> - Klik tombol muat data dari database yang ada di header untuk memulihkan data</p>
      
-      <p style={{ marginBottom: "0.4rem" }}><strong>*Jangan berbagi akun atau email terdaftar dengan orang lain</strong> - karena data ma'na anda bisa hilang, tercampur atau rusak</p>
+      <p style={{ marginBottom: "0.4rem" }}><strong>*Jangan berbagi akun atau email terdaftar dengan orang lain</strong> - karena data ma'na anda bisa hilang, tercampur atau rusak bahkan bisa kehilangan akun dan atau tidak bisa login kembali</p>
+            <p style={{ marginBottom: "0.4rem" }}><strong>*Usahakan untuk tidak menghapus cache atau cookies di web atau aplikasi ini</strong> - agar anda tidak kehilangan data dan akun anda (jika ada masalah dengan akun atau data anda silahkan hubungi admin)</p>
     </div>
   );
 };

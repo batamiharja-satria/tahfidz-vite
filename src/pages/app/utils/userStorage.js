@@ -1,8 +1,8 @@
 // utils/userStorage.js
-// Utility untuk user-specific localStorage dengan Error Handling dan Persistent Device ID
+// Enhanced Utility dengan Device UUID Recovery System
 
 export const UserStorage = {
-  // ✅ FUNGSI BARU: Get Device UUID yang PERSISTENT (IndexedDB + localStorage)
+  // ✅ FUNGSI BARU: Enhanced Persistent Device UUID dengan Recovery
   getPersistentDeviceUUID: async () => {
     try {
       // 1. Coba IndexedDB pertama (lebih persistent)
@@ -45,7 +45,140 @@ export const UserStorage = {
     }
   },
 
-  // ✅ FUNGSI BARU: IndexedDB Helper (PRIVATE)
+  // ✅ FUNGSI BARU: Enhanced Device Recovery System
+  enhancedDeviceRecovery: async (email, newDeviceUUID) => {
+    try {
+      console.log('🔄 Starting enhanced device recovery for:', email);
+      
+      // 1. Get current device fingerprint
+      const currentFingerprint = await UserStorage.getDeviceFingerprint();
+      
+      // 2. Get device history dari IndexedDB (lebih persistent)
+      let deviceHistory = await UserStorage._getFromIndexedDB('deviceHistory') || [];
+      
+      // 3. Cari device yang matching fingerprint
+      const matchingDevice = deviceHistory.find(device => 
+        device.fingerprint === currentFingerprint && 
+        device.email === email
+      );
+      
+      if (matchingDevice) {
+        console.log('✅ Device fingerprint match found:', matchingDevice.deviceUUID);
+        
+        // 4. Update device history dengan UUID baru
+        const updatedHistory = deviceHistory.map(device => 
+          device.fingerprint === currentFingerprint && device.email === email
+            ? { ...device, deviceUUID: newDeviceUUID, lastUsed: new Date().toISOString() }
+            : device
+        );
+        
+        await UserStorage._setInIndexedDB('deviceHistory', updatedHistory);
+        
+        return {
+          success: true,
+          oldDeviceUUID: matchingDevice.deviceUUID,
+          reason: 'Fingerprint match recovery'
+        };
+      }
+      
+      // 5. Fallback: Cek localStorage backup history
+      const localStorageHistory = JSON.parse(localStorage.getItem('deviceHistoryBackup') || '[]');
+      const localStorageMatch = localStorageHistory.find(device => 
+        device.fingerprint === currentFingerprint && device.email === email
+      );
+      
+      if (localStorageMatch) {
+        console.log('✅ LocalStorage backup recovery:', localStorageMatch.deviceUUID);
+        return {
+          success: true, 
+          oldDeviceUUID: localStorageMatch.deviceUUID,
+          reason: 'LocalStorage backup recovery'
+        };
+      }
+      
+      console.log('❌ No device recovery match found');
+      return { success: false, reason: 'No matching device history' };
+      
+    } catch (error) {
+      console.error('Error in enhancedDeviceRecovery:', error);
+      return { success: false, reason: error.message };
+    }
+  },
+
+  // ✅ FUNGSI BARU: Get Device Fingerprint
+  getDeviceFingerprint: async () => {
+    try {
+      const fingerprint = {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        screen: `${screen.width}x${screen.height}`,
+        cores: navigator.hardwareConcurrency || 'unknown',
+        platform: navigator.platform,
+        cookiesEnabled: navigator.cookieEnabled,
+        doNotTrack: navigator.doNotTrack || 'unknown'
+      };
+      
+      // Hash the fingerprint for consistency
+      const fingerprintString = JSON.stringify(fingerprint);
+      return btoa(fingerprintString);
+    } catch (error) {
+      console.error('Error generating device fingerprint:', error);
+      // Fallback to basic fingerprint
+      return btoa(JSON.stringify({
+        userAgent: navigator.userAgent,
+        language: navigator.language
+      }));
+    }
+  },
+
+  // ✅ FUNGSI BARU: Save Device History untuk Recovery
+  saveDeviceHistory: async (deviceUUID, email) => {
+    try {
+      const fingerprint = await UserStorage.getDeviceFingerprint();
+      const historyKey = 'deviceHistory';
+      
+      // Get existing history
+      let history = await UserStorage._getFromIndexedDB(historyKey) || [];
+      
+      // Remove old entries for this email+fingerprint
+      history = history.filter(device => 
+        !(device.email === email && device.fingerprint === fingerprint)
+      );
+      
+      // Add new entry
+      history.push({
+        email,
+        fingerprint,
+        deviceUUID,
+        lastUsed: new Date().toISOString(),
+        userAgent: navigator.userAgent.substring(0, 100) // simpan partial untuk debug
+      });
+      
+      // Keep only last 10 devices per email
+      const emailHistory = history.filter(device => device.email === email);
+      if (emailHistory.length > 10) {
+        history = history.filter(device => 
+          !(device.email === email) || 
+          emailHistory.slice(-10).includes(device)
+        );
+      }
+      
+      // Save to IndexedDB
+      await UserStorage._setInIndexedDB(historyKey, history);
+      
+      // Backup to localStorage juga
+      localStorage.setItem('deviceHistoryBackup', JSON.stringify(history.slice(-5)));
+      
+      console.log('✅ Device history saved for:', email);
+      return true;
+    } catch (error) {
+      console.error('Error saving device history:', error);
+      return false;
+    }
+  },
+
+  // ✅ IndexedDB Helper (PRIVATE)
   _getFromIndexedDB: (key) => {
     return new Promise((resolve) => {
       if (!window.indexedDB) {
@@ -107,7 +240,7 @@ export const UserStorage = {
     });
   },
 
-  // ✅ FUNGSI BARU: Get all data dari IndexedDB (FIXED VERSION)
+  // ✅ FUNGSI BARU: Get all data dari IndexedDB
   _getAllFromIndexedDB: () => {
     return new Promise((resolve) => {
       if (!window.indexedDB) {
