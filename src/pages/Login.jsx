@@ -33,8 +33,8 @@ export default function Login() {
     const lastRequest = localStorage.getItem("lastResetRequest");
     if (lastRequest) {
       const diff = Date.now() - parseInt(lastRequest, 10);
-      if (diff < 30 * 30 * 1000) {
-        setCooldown(30 * 30 * 1000 - diff);
+      if (diff < 60 * 60 * 1000) {
+        setCooldown(60 * 60 * 1000 - diff);
         setResetSuccess(true);
       }
     }
@@ -64,47 +64,22 @@ export default function Login() {
     setError("");
 
     try {
-      // 🔹 Step 1: Cek apakah email terdaftar
+      // 🔹 Step 1: Cek device UUID di database
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("device_uuid, status, created_at")
+        .select("device_uuid")
         .eq("email", email)
         .maybeSingle();
 
       if (profileError) throw profileError;
-      if (!profileData) throw new Error("Email belum terdaftar.");
 
-      // 🔹 Step 2: Enhanced Device UUID Recovery System
+      if (!profileData) {
+        throw new Error("Email belum terdaftar.");
+      }
+
+      // 🔹 Step 2: Validasi device UUID
       if (profileData.device_uuid && profileData.device_uuid !== deviceUUID) {
-        console.log('🔄 Device UUID mismatch, starting recovery...');
-        
-        // ✅ Coba recovery device berdasarkan fingerprint
-        const recoveryResult = await UserStorage.enhancedDeviceRecovery(email, deviceUUID);
-        
-        if (recoveryResult.success) {
-          // ✅ RECOVERY BERHASIL - Update device UUID di database
-          console.log('✅ Device recovery successful:', recoveryResult.reason);
-          
-          const { error: updateError } = await supabase
-            .from("profiles")
-            .update({ device_uuid: deviceUUID })
-            .eq("email", email);
-            
-          if (updateError) {
-            console.warn('⚠️ Failed to update device UUID, but continuing login...');
-            // Lanjutkan login meskipun update gagal
-          } else {
-            console.log('✅ Device UUID updated in database');
-          }
-        } else {
-          // ❌ RECOVERY GAGAL - Benar-benar device berbeda
-          console.log('❌ Device recovery failed:', recoveryResult.reason);
-          throw new Error(
-            "Akun ini terdaftar di device lain. " +
-            "Gunakan device yang sama atau daftar dengan email baru. " +
-            "Jika ini device Anda, hapus semua data browser dan coba lagi."
-          );
-        }
+        throw new Error("Akun ini terdaftar di device lain. Gunakan device yang sama atau daftar dengan email baru.");
       }
 
       // 🔹 Step 3: Login dengan Supabase Auth
@@ -115,30 +90,29 @@ export default function Login() {
 
       if (loginError) throw loginError;
 
-      // 🔹 Step 4: Simpan device history untuk recovery future
-      if (!profileData.device_uuid || profileData.device_uuid !== deviceUUID) {
-        // Update device UUID jika belum ada atau berubah
+      // ✅ MIGRASIKAN DATA DARI GUEST KE USER
+      const guestDeviceUUID = deviceUUID; // UUID sebelum login
+      await UserStorage.migrateGuestToUser(loginData.session, guestDeviceUUID);
+
+      // 🔹 Step 4: Jika device_uuid belum ada, update dengan device UUID saat ini
+      if (!profileData.device_uuid) {
         await supabase
           .from("profiles")
           .update({ device_uuid: deviceUUID })
           .eq("email", email);
       }
 
-      // 🔹 Step 5: SIMPAN DEVICE HISTORY UNTUK MASA DEPAN
-      await UserStorage.saveDeviceHistory(deviceUUID, email);
-
-      // 🔹 Step 6: Migrasi data guest → user
-      await UserStorage.migrateGuestToUser(loginData.session, deviceUUID);
-
-      // Cleanup
+      // ✅ Bersihkan semua state reset setelah login sukses
       setResetSuccess(false);
       setResetLoading(false);
       setCooldown(null);
       localStorage.removeItem("lastResetRequest");
 
       setLoading(false);
+      
+      // ✅ REDIRECT KE HALAMAN SEBELUMNYA ATAU BERANDA
       navigate(from, { replace: true });
-        
+      
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -166,7 +140,7 @@ export default function Login() {
     } else {
       setResetSuccess(true);
       localStorage.setItem("lastResetRequest", Date.now().toString());
-      setCooldown(30 * 30 * 1000); // 1 jam
+      setCooldown(60 * 60 * 1000); // 1 jam
     }
   };
 
@@ -187,14 +161,15 @@ export default function Login() {
 
   return (
     <div className="container" style={{
-      width: "100%",
+    width: "100%",
       maxWidth: "600px",
-      padding: "2rem"
-    }}>
+    padding: "2rem" }}>
       
       <Link 
         to="/" 
         style={{
+          
+          
           color: 'black',
           border: 'none',
           borderRadius: '0px',
@@ -207,6 +182,7 @@ export default function Login() {
       >
         ← 
       </Link>
+      
       
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
@@ -315,7 +291,7 @@ export default function Login() {
 
       {resetSuccess && cooldown && (
         <p style={{ color: "red", marginTop: "0.5rem" }}>
-          Link reset password hanya berlaku {Math.ceil(cooldown / 15000)} menit
+          Link reset password hanya berlaku {Math.ceil(cooldown / 60000)} menit
           lagi. Setelah itu Anda bisa kirim ulang.
         </p>
       )}
@@ -331,22 +307,24 @@ export default function Login() {
         `}
       </style>
       
-      <Link 
-        to="/admin" 
-        style={{
-          border: 'none',
-          background: "white",
-          color: "white",
-          textDecoration: "none",
-          borderRadius: "6px",
-          fontWeight: "bold",
-          display: 'flex',
-          justifyContent: 'end',
+                  <Link 
+          to="/admin" 
+          style={{
+            border: 'none',
+            background: "white",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: "6px",
+            fontWeight: "bold",
+            display: 'flex',
+            justifyContent: 'end' ,
+            
           lineHeight: '1'
-        }}
-      >
-        🔧 
-      </Link>
+          }}
+        >
+          🔧 
+        </Link>
+      
     </div>
   );
 }

@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
-import { Link, useNavigate } from "react-router-dom";
-import { UserStorage } from "./app/utils/userStorage";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { UserStorage } from "./app/utils/userStorage"; // ✅ IMPORT BARU
 
 export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [info, setInfo] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [deviceUUID, setDeviceUUID] = useState("");
 
-  const navigate = useNavigate();
+  const from = location.state?.from?.pathname || "/app2";
 
   useEffect(() => {
     const initializeDeviceUUID = async () => {
+      // ✅ GUNAKAN FUNGSI ASYNC KHUSUS
       const uuid = await UserStorage.getPersistentDeviceUUIDAsync();
       setDeviceUUID(uuid);
     };
@@ -25,152 +27,113 @@ export default function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setInfo("");
+    setLoading(true);
 
     try {
-      // Validasi password
-      if (password !== confirmPassword) {
-        throw new Error("Password dan konfirmasi password tidak sama");
-      }
-
-      if (password.length < 6) {
-        throw new Error("Password minimal 6 karakter");
-      }
-
-      // 🔹 Step 1: Cek apakah email sudah terdaftar
-      const { data: profileData, error: profileCheckError } = await supabase
+      // 🔹 Step 1: Cek apakah email sudah ada di profiles
+      const { data: existingUser, error: checkError } = await supabase
         .from("profiles")
-        .select("device_uuid")
+        .select("email, device_uuid, status")
         .eq("email", email)
         .maybeSingle();
 
-      if (profileCheckError) throw profileCheckError;
-
-      // 🔹 Step 1a: RECOVERY OPTION jika email sudah terdaftar
-      if (profileData) {
-        // Coba recovery berdasarkan fingerprint
-        const recoveryResult = await UserStorage.enhancedDeviceRecovery(email, deviceUUID);
-        
-        if (recoveryResult.success) {
-          // ✅ FINGERPRINT MATCH - Ini device yang sama!
-          console.log('✅ Device recovery in register:', recoveryResult.reason);
-          
-          // Update device UUID di database
-          const { error: updateError } = await supabase
-            .from("profiles")
-            .update({ device_uuid: deviceUUID })
-            .eq("email", email);
-            
-          if (updateError) throw updateError;
-          
-          // Langsung login setelah recovery
-          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (loginError) {
-            // Jika login gagal, mungkin password salah
-            throw new Error("Email sudah terdaftar. Silahkan login dengan password yang benar.");
-          }
-
-          // Simpan device history
-          await UserStorage.saveDeviceHistory(deviceUUID, email);
-          
-          // Migrasi data guest ke user
-          await UserStorage.migrateGuestToUser(loginData.session, deviceUUID);
-          
-          setLoading(false);
-          alert("✅ Device berhasil dipulihkan! Login berhasil.");
-          navigate("/app2");
-          return;
-        } else {
-          // ❌ FINGERPRINT TIDAK MATCH - Benar-benar device berbeda
-          throw new Error("Email sudah terdaftar di device lain. Gunakan email lain atau login.");
-        }
+      if (checkError) {
+        throw new Error("Terjadi kesalahan saat memeriksa email.");
       }
 
-      // 🔹 Step 2: Register user baru (jika email belum terdaftar)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      if (existingUser) {
+        if (existingUser.device_uuid && existingUser.device_uuid !== deviceUUID) {
+          throw new Error("Email sudah terdaftar di device lain. Gunakan email baru untuk device ini.");
+        }
+        throw new Error("Email sudah terdaftar, silakan login.");
+      }
+
+      // 🔹 Step 2: Daftar user baru di auth
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: "https://tahfidzku.vercel.app/verified.html",
+          data: {
+            device_uuid: deviceUUID
+          }
+        },
       });
 
-      if (authError) {
-        if (authError.message.includes('Sudah terdaftar') || authError.message.includes('Sudah terdaftar')) {
-          throw new Error("Email sudah terdaftar. Silahkan login atau gunakan email lain.");
-        }
-        throw authError;
-      }
+      if (signUpError) throw signUpError;
 
-      if (!authData.user) {
-        throw new Error("Gagal membuat akun. Silahkan coba lagi.");
-      }
+      if (authData?.user) {
+        // ✅ PERBAIKAN FINAL: Insert baru dengan status default yang eksplisit
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({ 
+            email: email,
+            device_uuid: deviceUUID,
+            status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
+          });
 
-      // 🔹 Step 3: Create profile dengan device UUID
-      const { error: insertProfileError } = await supabase.from("profiles").insert([
-        {
-          id: authData.user.id,
-          email: email,
-          device_uuid: deviceUUID,
-          status: [false, false, false, false, false, false, false, true, true, true],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ]);
-
-      // 🔹 Step 3a: Handle duplicate key error
-      if (insertProfileError) {
-        if (insertProfileError.code === '23505') {
-          // Jika terjadi duplicate key, update device_uuid saja
-          console.log('🔄 Duplicate key detected, updating device UUID...');
+        if (profileError) {
+          console.error("Error creating profile:", profileError);
+          // Jika error karena row sudah ada, try update
           const { error: updateError } = await supabase
             .from("profiles")
-            .update({ device_uuid: deviceUUID })
+            .update({ 
+              device_uuid: deviceUUID,
+              status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
+            })
             .eq("email", email);
-          
-          if (updateError) throw updateError;
-        } else {
-          throw insertProfileError;
+            
+          if (updateError) {
+            console.error("Error updating profile:", updateError);
+          }
         }
+
+        setInfo("Silakan cek email Anda dan lakukan verifikasi sebelum login.");
+      } else {
+        setInfo("Jika email valid, link verifikasi telah dikirim.");
       }
 
-      // 🔹 Step 4: SIMPAN DEVICE HISTORY untuk recovery future
-      await UserStorage.saveDeviceHistory(deviceUUID, email);
+      // 🔹 Reset form
+      setEmail("");
+      setPassword("");
 
-      setLoading(false);
-      alert("✅ Pendaftaran berhasil! Silakan verifikasi email terlebih dahulu.");
-      navigate("/login");
+      setTimeout(() => {
+        navigate(from, { replace: true });
+      }, 3000);
+
     } catch (err) {
-      console.error('Registration error:', err);
       setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="container" style={{
-      width: "100%",
+width: "100%",
       maxWidth: "600px",
-      padding: "2rem"
-    }}>
+    padding: "2rem" }}>
       
-      <Link 
-        to="/" 
-        style={{
-          color: 'black',
-          border: 'none',
-          borderRadius: '0px',
-          textDecoration: 'none',
-          fontSize: '1.5rem',
-          fontWeight: 'bold',
-          display: 'inline-block',
-          lineHeight: '1'
-        }}
-      >
-        ← 
-      </Link>
+      
+<Link 
+  to="/" 
+  style={{
+    padding: '0px 0px',
+    background: '',
+    color: 'black',
+    border: 'none',
+    borderRadius: '0px',
+    textDecoration: 'none',
+    fontSize: '1.5rem', // ✅ TAMBAH INI - ukuran lebih besar
+    fontWeight: 'bold',  // ✅ OPSIONAL - biar lebih tebal
+    display: 'inline-block',
+    lineHeight: '1'
+  }}
+>
+  ← 
+</Link>
       
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
@@ -183,7 +146,12 @@ export default function Register() {
         <h3>Daftar</h3>
       </center>
       <br />
-      <form onSubmit={handleRegister} className="form-group">
+
+      <form
+        style={{ marginBottom: "0.5rem" }}
+        className="form-group"
+        onSubmit={handleRegister}
+      >
         <div style={{ position: "relative", marginBottom: "1rem" }}>
           <input
             className="form-control"
@@ -196,6 +164,7 @@ export default function Register() {
             style={{ width: "100%", paddingRight: "2.5rem" }}
           />
         </div>
+
         <div style={{ position: "relative", marginBottom: "1rem" }}>
           <input
             className="form-control"
@@ -221,31 +190,6 @@ export default function Register() {
             {showPassword ? "🙈" : "👁️"}
           </span>
         </div>
-        <div style={{ position: "relative", marginBottom: "1rem" }}>
-          <input
-            className="form-control"
-            type={showConfirmPassword ? "text" : "password"}
-            placeholder="Konfirmasi Password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            disabled={loading}
-            style={{ width: "100%", paddingRight: "2.5rem" }}
-          />
-          <span
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            style={{
-              position: "absolute",
-              right: "0.5rem",
-              top: "50%",
-              transform: "translateY(-50%)",
-              cursor: "pointer",
-              userSelect: "none",
-            }}
-          >
-            {showConfirmPassword ? "🙈" : "👁️"}
-          </span>
-        </div>
 
         <button className="btn btn-primary" type="submit" disabled={loading}>
           {loading ? "Loading..." : "Daftar"}
@@ -257,6 +201,26 @@ export default function Register() {
       </p>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
+      {info && <p style={{ color: "green" }}>{info}</p>}
+      
+                        <Link 
+          to="/admin" 
+          style={{
+            border: 'none',
+            background: "white",
+            color: "white",
+            textDecoration: "none",
+            borderRadius: "6px",
+            fontWeight: "bold",
+            display: 'flex',
+            justifyContent: 'end' ,
+            
+          lineHeight: '1'
+          }}
+        >
+          🔧 
+        </Link>
+      
     </div>
   );
 }
