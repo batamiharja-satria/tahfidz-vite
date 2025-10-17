@@ -532,45 +532,45 @@ const toArabicNumber = (number) => {
       <div style={{ padding: '10px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
         <Container className="d-flex justify-content-between align-items-center">
           {session?.user?.id && (
-            <div className="d-flex gap-2 text-center">
+<div className="d-flex justify-content-center gap-2 text-center">
+  <Button 
+    variant="primary" 
+    size="sm" 
+    onClick={handleLoadFromDatabase}
+    disabled={syncStatus.loading}
+  >
+    {syncStatus.loading ? (
+      <>
+        <span className="spinner-border spinner-border-sm me-1" />
+        Muat dari database
+      </>
+    ) : (
+      '📥 Muat dari database'
+    )}
+  </Button>
 
-              <Button 
-                variant="primary" 
-                size="sm" 
-                onClick={handleLoadFromDatabase}
-                disabled={syncStatus.loading}
-              >
-                {syncStatus.loading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" />
-                    Memuat...
-                  </>
-                ) : (
-                  '📥 Muat data'
-                )}
-              </Button>
-              <Button 
-                variant={hasUnsavedChanges ? "warning" : "success"}
-                size="sm" 
-                onClick={handleSaveToDatabase}
-                disabled={syncStatus.loading || !hasUnsavedChanges}
-              >
-                {syncStatus.loading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" />
-                    Menyimpan...
-                  </>
-                ) : (
-                  '💾 Simpan data'
-                )}
-              </Button>
-            </div>
+  <Button 
+    variant={hasUnsavedChanges ? "warning" : "success"}
+    size="sm" 
+    onClick={handleSaveToDatabase}
+    disabled={syncStatus.loading || !hasUnsavedChanges}
+  >
+    {syncStatus.loading ? (
+      <>
+        <span className="spinner-border spinner-border-sm me-1" />
+        Simpan ke database
+      </>
+    ) : (
+      '💾 Simpan ke database'
+    )}
+  </Button>
+</div>
           )}
         </Container>
 
 
       </div>
-      <div style={{textAlign:"left", marginTop:"8px"}}>
+      <div style={{textAlign:"center", marginTop:"8px"}}>
             {cacheStats && (
               <small className="text-muted ">
                 {hasUnsavedChanges && (
