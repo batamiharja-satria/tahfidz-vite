@@ -102,7 +102,7 @@ export default function Login() {
           throw new Error(
             "Akun ini terdaftar di device lain. " +
             "Gunakan device yang sama atau daftar dengan email baru. " +
-            "Jika ini device Anda, lakukan pendaftaran ulang dengan email yang sama dan konfirmasi bahwa ini device anda (jika gagal hubungi admin)"
+            "Jika ini device Anda, hapus semua data browser dan coba lagi."
           );
         }
       }

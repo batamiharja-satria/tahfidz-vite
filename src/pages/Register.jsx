@@ -39,63 +39,101 @@ export default function Register() {
       }
 
       // 🔹 Step 1: Cek apakah email sudah terdaftar
-      const { data: existingProfile, error: profileError } = await supabase
+      const { data: profileData, error: profileCheckError } = await supabase
         .from("profiles")
-        .select("id, device_uuid")
+        .select("device_uuid")
         .eq("email", email)
         .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileCheckError) throw profileCheckError;
 
-      if (existingProfile) {
-        // Jika email sudah terdaftar, tawarkan recovery
-        const shouldRecover = window.confirm(
-          'Email sudah terdaftar. Apakah Anda ingin memulihkan akses di device ini? ' +
-          'Ini akan mengizinkan login di device ini.'
-        );
+      // 🔹 Step 1a: RECOVERY OPTION jika email sudah terdaftar
+      if (profileData) {
+        // Coba recovery berdasarkan fingerprint
+        const recoveryResult = await UserStorage.enhancedDeviceRecovery(email, deviceUUID);
         
-        if (shouldRecover) {
-          // Update device UUID untuk recovery
+        if (recoveryResult.success) {
+          // ✅ FINGERPRINT MATCH - Ini device yang sama!
+          console.log('✅ Device recovery in register:', recoveryResult.reason);
+          
+          // Update device UUID di database
+          const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ device_uuid: deviceUUID })
+            .eq("email", email);
+            
+          if (updateError) throw updateError;
+          
+          // Langsung login setelah recovery
+          const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (loginError) {
+            // Jika login gagal, mungkin password salah
+            throw new Error("Email sudah terdaftar. Silakan login dengan password yang benar.");
+          }
+
+          // Simpan device history
+          await UserStorage.saveDeviceHistory(deviceUUID, email);
+          
+          // Migrasi data guest ke user
+          await UserStorage.migrateGuestToUser(loginData.session, deviceUUID);
+          
+          setLoading(false);
+          alert("✅ Device berhasil dipulihkan! Login berhasil.");
+          navigate("/app2");
+          return;
+        } else {
+          // ❌ FINGERPRINT TIDAK MATCH - Benar-benar device berbeda
+          throw new Error("Email sudah terdaftar di device lain. Gunakan email lain atau login.");
+        }
+      }
+
+      // 🔹 Step 2: Register user baru (jika email belum terdaftar)
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authError) {
+        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+          throw new Error("Email sudah terdaftar. Silakan login atau gunakan email lain.");
+        }
+        throw authError;
+      }
+
+      if (!authData.user) {
+        throw new Error("Gagal membuat akun. Silakan coba lagi.");
+      }
+
+      // 🔹 Step 3: Create profile dengan device UUID
+      const { error: insertProfileError } = await supabase.from("profiles").insert([
+        {
+          id: authData.user.id,
+          email: email,
+          device_uuid: deviceUUID,
+          status: [false, false, false, false, false, false, false, true, true, true],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]);
+
+      // 🔹 Step 3a: Handle duplicate key error
+      if (insertProfileError) {
+        if (insertProfileError.code === '23505') {
+          // Jika terjadi duplicate key, update device_uuid saja
+          console.log('🔄 Duplicate key detected, updating device UUID...');
           const { error: updateError } = await supabase
             .from("profiles")
             .update({ device_uuid: deviceUUID })
             .eq("email", email);
           
           if (updateError) throw updateError;
-          
-          // Simpan device history
-          await UserStorage.saveDeviceHistory(deviceUUID, email);
-          
-          alert('✅ Device berhasil dipulihkan! Silakan login.');
-          navigate("/login");
-          return;
         } else {
-          throw new Error("Email sudah terdaftar. Gunakan email lain atau pulihkan akses.");
+          throw insertProfileError;
         }
-      }
-
-      // 🔹 Step 2: Register user baru
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (authError) throw authError;
-
-      // 🔹 Step 3: Create profile dengan device UUID
-      if (authData.user) {
-        const { error: profileError } = await supabase.from("profiles").insert([
-          {
-            id: authData.user.id,
-            email: email,
-            device_uuid: deviceUUID,
-            status: [false, false, false, false, false, false, false, true, true, true],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ]);
-
-        if (profileError) throw profileError;
       }
 
       // 🔹 Step 4: SIMPAN DEVICE HISTORY untuk recovery future
@@ -105,6 +143,7 @@ export default function Register() {
       alert("✅ Pendaftaran berhasil! Silakan login.");
       navigate("/login");
     } catch (err) {
+      console.error('Registration error:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -220,4 +259,4 @@ export default function Register() {
       {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
-} 
+}

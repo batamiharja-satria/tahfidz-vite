@@ -583,48 +583,6 @@ function App2({ session }) {
                         </div>
                       </div>
 
-                      {/* Opsi Lynk.id */}
-                      <div className="col-12">
-                        <div 
-                          className="card h-100 border-0 shadow-sm"
-                          style={{ 
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease'
-                          }}
-                          onClick={() => window.open('http://lynk.id/batamiharja/s/o4nq4njynnwj', '_blank')}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.transform = "translateY(-3px)";
-                            e.currentTarget.style.boxShadow = "0 6px 15px rgba(13,110,253,0.3)";
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.transform = "translateY(0)";
-                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
-                          }}
-                        >
-                          <div className="card-body py-4">
-                            <div className="d-flex align-items-center mb-3">
-                              <div 
-                                className="rounded-circle d-flex align-items-center justify-content-center me-3"
-                                style={{ 
-                                  width: '50px', 
-                                  height: '50px', 
-                                  backgroundColor: '#0d6efd',
-                                  color: 'white'
-                                }}
-                              >
-                                <i className="fas fa-link fs-5"></i>
-                              </div>
-                              <div className="text-start">
-                                <h6 className="mb-1 fw-bold">Lynk.id</h6>
-                                <small className="text-muted">Link aggregator & donation</small>
-                              </div>
-                            </div>
-                            <p className="small text-muted mb-0 text-start">
-                              Metode pembayaran dan kemudahan akses
-                            </p>
-                          </div>
-                        </div>
-                      </div>
                       
                        {/* Opsi Transfer Langsung */}
                       <div className="col-12">
