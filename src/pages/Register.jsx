@@ -72,7 +72,7 @@ export default function Register() {
 
           if (loginError) {
             // Jika login gagal, mungkin password salah
-            throw new Error("Email sudah terdaftar. Silakan login dengan password yang benar.");
+            throw new Error("Email sudah terdaftar. Silahkan login dengan password yang benar.");
           }
 
           // Simpan device history
@@ -98,14 +98,14 @@ export default function Register() {
       });
 
       if (authError) {
-        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
-          throw new Error("Email sudah terdaftar. Silakan login atau gunakan email lain.");
+        if (authError.message.includes('Sudah terdaftar') || authError.message.includes('Sudah terdaftar')) {
+          throw new Error("Email sudah terdaftar. Silahkan login atau gunakan email lain.");
         }
         throw authError;
       }
 
       if (!authData.user) {
-        throw new Error("Gagal membuat akun. Silakan coba lagi.");
+        throw new Error("Gagal membuat akun. Silahkan coba lagi.");
       }
 
       // 🔹 Step 3: Create profile dengan device UUID
@@ -140,7 +140,7 @@ export default function Register() {
       await UserStorage.saveDeviceHistory(deviceUUID, email);
 
       setLoading(false);
-      alert("✅ Pendaftaran berhasil! Silakan login.");
+      alert("✅ Pendaftaran berhasil! Silakan verifikasi email terlebih dahulu.");
       navigate("/login");
     } catch (err) {
       console.error('Registration error:', err);

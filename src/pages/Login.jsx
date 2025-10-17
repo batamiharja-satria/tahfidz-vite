@@ -33,8 +33,8 @@ export default function Login() {
     const lastRequest = localStorage.getItem("lastResetRequest");
     if (lastRequest) {
       const diff = Date.now() - parseInt(lastRequest, 10);
-      if (diff < 60 * 60 * 1000) {
-        setCooldown(60 * 60 * 1000 - diff);
+      if (diff < 30 * 30 * 1000) {
+        setCooldown(30 * 30 * 1000 - diff);
         setResetSuccess(true);
       }
     }
@@ -166,7 +166,7 @@ export default function Login() {
     } else {
       setResetSuccess(true);
       localStorage.setItem("lastResetRequest", Date.now().toString());
-      setCooldown(60 * 60 * 1000); // 1 jam
+      setCooldown(30 * 30 * 1000); // 1 jam
     }
   };
 
@@ -315,7 +315,7 @@ export default function Login() {
 
       {resetSuccess && cooldown && (
         <p style={{ color: "red", marginTop: "0.5rem" }}>
-          Link reset password hanya berlaku {Math.ceil(cooldown / 60000)} menit
+          Link reset password hanya berlaku {Math.ceil(cooldown / 15000)} menit
           lagi. Setelah itu Anda bisa kirim ulang.
         </p>
       )}
