@@ -26,27 +26,19 @@ export default function Register() {
     initializeDeviceUUID();
   }, []);
 
-  // ✅ PERBAIKAN: Handle Google Register dengan state management yang lebih baik
+  // ✅ PERBAIKAN: Handle Google Register yang lebih robust
   const handleGoogleRegister = async () => {
     setGoogleLoading(true);
     setError("");
 
     try {
-      // Generate unique state parameter untuk mencegah CSRF
-      const state = Math.random().toString(36).substring(2, 15) + 
-                   Math.random().toString(36).substring(2, 15);
-      
-      // Simpan state di sessionStorage untuk validasi nanti
-      sessionStorage.setItem('oauth_state', state);
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: "https://tahfidzku.vercel.app/app2",
+          redirectTo: `${window.location.origin}${window.location.pathname}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
-            state: state // Tambahkan state parameter
           }
         }
       });
@@ -54,21 +46,20 @@ export default function Register() {
       if (error) throw error;
 
     } catch (err) {
+      console.error("Google register error:", err);
       setError(err.message);
       setGoogleLoading(false);
-      // Bersihkan state jika error
-      sessionStorage.removeItem('oauth_state');
     }
   };
 
-  // ✅ PERBAIKAN: Handle OAuth callback ketika kembali ke halaman register
+  // ✅ PERBAIKAN: Handle auth state dengan approach yang lebih sederhana
   useEffect(() => {
-    const handleOAuthCallback = async () => {
+    const handleAuthState = async () => {
+      // Cek jika ada error di URL
       const urlParams = new URLSearchParams(window.location.search);
       const error = urlParams.get('error');
       const errorDescription = urlParams.get('error_description');
       
-      // Jika ada error OAuth di URL, tampilkan dan bersihkan URL
       if (error) {
         console.error('OAuth Error:', error, errorDescription);
         
@@ -78,48 +69,38 @@ export default function Register() {
           setError(`Error pendaftaran: ${errorDescription || error}`);
         }
         
-        // Bersihkan URL dari parameter error
+        // Bersihkan URL
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
 
-      // Cek jika ini adalah redirect dari OAuth (ada code di URL)
-      const code = urlParams.get('code');
-      if (code) {
-        setGoogleLoading(true);
-        try {
-          // Dapatkan session current user
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError) throw sessionError;
-          
-          if (session?.user) {
+      // Cek jika user sudah login (setelah OAuth redirect)
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const isGoogleUser = session.user.app_metadata?.provider === 'google' || 
+                           session.user.identities?.some(identity => identity.provider === 'google');
+
+        if (isGoogleUser) {
+          try {
             await handleGoogleUser(session.user);
+            // Bersihkan URL setelah berhasil register
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (err) {
+            console.error("Error handling Google user:", err);
+            setError(err.message);
+            await supabase.auth.signOut();
           }
-        } catch (err) {
-          console.error("Error handling OAuth callback:", err);
-          setError(err.message);
-          await supabase.auth.signOut();
-        } finally {
-          setGoogleLoading(false);
-          // Bersihkan URL
-          window.history.replaceState({}, document.title, window.location.pathname);
         }
       }
     };
 
-    handleOAuthCallback();
+    handleAuthState();
   }, [deviceUUID, navigate]);
 
-  // ✅ PERBAIKAN: Pisahkan logic handling Google user untuk reusable
+  // ✅ PERBAIKAN: Handle Google user data
   const handleGoogleUser = async (user) => {
     try {
-      // ✅ Check if user signed in with Google (OAuth)
-      const isGoogleUser = user.app_metadata?.provider === 'google' || 
-                          user.identities?.some(identity => identity.provider === 'google');
-
-      if (!isGoogleUser) return;
-
       // ✅ Check if profile already exists
       const { data: existingProfile, error: profileError } = await supabase
         .from("profiles")
@@ -185,36 +166,6 @@ export default function Register() {
       throw err;
     }
   };
-
-  // ✅ PERBAIKAN: Listen for auth state changes (untuk non-OAuth flows)
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Skip jika ini OAuth flow (sudah dihandle di atas)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('code')) return;
-
-        if (event === 'SIGNED_IN' && session?.user) {
-          const user = session.user;
-          
-          const isGoogleUser = user.app_metadata?.provider === 'google' || 
-                              user.identities?.some(identity => identity.provider === 'google');
-
-          if (isGoogleUser) {
-            try {
-              await handleGoogleUser(user);
-            } catch (err) {
-              console.error("Error handling Google signup:", err);
-              setError(err.message);
-              await supabase.auth.signOut();
-            }
-          }
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [deviceUUID, navigate]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -301,13 +252,6 @@ export default function Register() {
       setLoading(false);
     }
   };
-
-  // ✅ Reset OAuth state saat komponen unmount
-  useEffect(() => {
-    return () => {
-      sessionStorage.removeItem('oauth_state');
-    };
-  }, []);
 
   return (
     <div className="container" style={{

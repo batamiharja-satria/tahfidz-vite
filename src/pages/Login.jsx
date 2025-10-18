@@ -59,27 +59,19 @@ export default function Login() {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  // ✅ PERBAIKAN: Handle Google Login dengan state management yang lebih baik
+  // ✅ PERBAIKAN: Handle Google Login yang lebih robust
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     setError("");
 
     try {
-      // Generate unique state parameter untuk mencegah CSRF
-      const state = Math.random().toString(36).substring(2, 15) + 
-                   Math.random().toString(36).substring(2, 15);
-      
-      // Simpan state di sessionStorage untuk validasi nanti
-      sessionStorage.setItem('oauth_state', state);
-
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: "https://tahfidzku.vercel.app/app2",
+          redirectTo: `${window.location.origin}${window.location.pathname}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
-            state: state // Tambahkan state parameter
           }
         }
       });
@@ -87,21 +79,20 @@ export default function Login() {
       if (error) throw error;
 
     } catch (err) {
+      console.error("Google login error:", err);
       setError(err.message);
       setGoogleLoading(false);
-      // Bersihkan state jika error
-      sessionStorage.removeItem('oauth_state');
     }
   };
 
-  // ✅ PERBAIKAN: Handle OAuth callback ketika kembali ke halaman login
+  // ✅ PERBAIKAN: Handle auth state dengan approach yang lebih sederhana
   useEffect(() => {
-    const handleOAuthCallback = async () => {
+    const handleAuthState = async () => {
+      // Cek jika ada error di URL
       const urlParams = new URLSearchParams(window.location.search);
       const error = urlParams.get('error');
       const errorDescription = urlParams.get('error_description');
       
-      // Jika ada error OAuth di URL, tampilkan dan bersihkan URL
       if (error) {
         console.error('OAuth Error:', error, errorDescription);
         
@@ -111,48 +102,38 @@ export default function Login() {
           setError(`Error login: ${errorDescription || error}`);
         }
         
-        // Bersihkan URL dari parameter error
+        // Bersihkan URL
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
       }
 
-      // Cek jika ini adalah redirect dari OAuth (ada code di URL)
-      const code = urlParams.get('code');
-      if (code) {
-        setGoogleLoading(true);
-        try {
-          // Dapatkan session current user
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
-          if (sessionError) throw sessionError;
-          
-          if (session?.user) {
+      // Cek jika user sudah login (setelah OAuth redirect)
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const isGoogleUser = session.user.app_metadata?.provider === 'google' || 
+                           session.user.identities?.some(identity => identity.provider === 'google');
+
+        if (isGoogleUser) {
+          try {
             await handleGoogleUser(session.user);
+            // Bersihkan URL setelah berhasil login
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (err) {
+            console.error("Error handling Google user:", err);
+            setError(err.message);
+            await supabase.auth.signOut();
           }
-        } catch (err) {
-          console.error("Error handling OAuth callback:", err);
-          setError(err.message);
-          await supabase.auth.signOut();
-        } finally {
-          setGoogleLoading(false);
-          // Bersihkan URL
-          window.history.replaceState({}, document.title, window.location.pathname);
         }
       }
     };
 
-    handleOAuthCallback();
+    handleAuthState();
   }, [deviceUUID, navigate]);
 
-  // ✅ PERBAIKAN: Pisahkan logic handling Google user untuk reusable
+  // ✅ PERBAIKAN: Handle Google user data
   const handleGoogleUser = async (user) => {
     try {
-      // ✅ Check if user signed in with Google (OAuth)
-      const isGoogleUser = user.app_metadata?.provider === 'google' || 
-                          user.identities?.some(identity => identity.provider === 'google');
-
-      if (!isGoogleUser) return;
-
       // ✅ Check if profile already exists
       const { data: existingProfile, error: profileError } = await supabase
         .from("profiles")
@@ -223,21 +204,18 @@ export default function Login() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Skip jika ini OAuth flow (sudah dihandle di atas)
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('code')) return;
-
         if (event === 'SIGNED_IN' && session?.user) {
           const user = session.user;
           
           const isGoogleUser = user.app_metadata?.provider === 'google' || 
                               user.identities?.some(identity => identity.provider === 'google');
 
-          if (isGoogleUser) {
+          // Only handle non-Google users here, Google users dihandle di useEffect khusus
+          if (!isGoogleUser) {
             try {
-              await handleGoogleUser(user);
+              await handleRegularLogin(user);
             } catch (err) {
-              console.error("Error handling Google signup:", err);
+              console.error("Error handling regular login:", err);
               setError(err.message);
               await supabase.auth.signOut();
             }
@@ -249,31 +227,53 @@ export default function Login() {
     return () => subscription.unsubscribe();
   }, [deviceUUID, navigate]);
 
+  // ✅ Function untuk handle regular email login
+  const handleRegularLogin = async (user) => {
+    // ✅ Check if profile exists and validate device
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("device_uuid")
+      .eq("email", user.email)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+
+    if (!profileData) {
+      throw new Error("Email belum terdaftar.");
+    }
+
+    // ✅ Validate device UUID
+    if (profileData.device_uuid && profileData.device_uuid !== deviceUUID) {
+      throw new Error("Akun ini terdaftar di device lain. Gunakan device yang sama atau daftar dengan email baru.");
+    }
+
+    // ✅ Update device_uuid if not set
+    if (!profileData.device_uuid) {
+      await supabase
+        .from("profiles")
+        .update({ device_uuid: deviceUUID })
+        .eq("email", user.email);
+    }
+
+    // ✅ Migrate guest data
+    await UserStorage.migrateGuestToUser({ user }, deviceUUID);
+
+    // ✅ Bersihkan state reset
+    setResetSuccess(false);
+    setResetLoading(false);
+    setCooldown(null);
+    localStorage.removeItem("lastResetRequest");
+
+    // ✅ Redirect
+    navigate(from, { replace: true });
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
-      // 🔹 Step 1: Cek device UUID di database
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("device_uuid")
-        .eq("email", email)
-        .maybeSingle();
-
-      if (profileError) throw profileError;
-
-      if (!profileData) {
-        throw new Error("Email belum terdaftar.");
-      }
-
-      // 🔹 Step 2: Validasi device UUID
-      if (profileData.device_uuid && profileData.device_uuid !== deviceUUID) {
-        throw new Error("Akun ini terdaftar di device lain. Gunakan device yang sama atau daftar dengan email baru.");
-      }
-
-      // 🔹 Step 3: Login dengan Supabase Auth
       const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -281,28 +281,7 @@ export default function Login() {
 
       if (loginError) throw loginError;
 
-      // ✅ MIGRASIKAN DATA DARI GUEST KE USER
-      const guestDeviceUUID = deviceUUID; // UUID sebelum login
-      await UserStorage.migrateGuestToUser(loginData.session, guestDeviceUUID);
-
-      // 🔹 Step 4: Jika device_uuid belum ada, update dengan device UUID saat ini
-      if (!profileData.device_uuid) {
-        await supabase
-          .from("profiles")
-          .update({ device_uuid: deviceUUID })
-          .eq("email", email);
-      }
-
-      // ✅ Bersihkan semua state reset setelah login sukses
-      setResetSuccess(false);
-      setResetLoading(false);
-      setCooldown(null);
-      localStorage.removeItem("lastResetRequest");
-
-      setLoading(false);
-      
-      // ✅ REDIRECT KE HALAMAN SEBELUMNYA ATAU BERANDA
-      navigate(from, { replace: true });
+      // handleRegularLogin akan dipanggil oleh auth state change listener
       
     } catch (err) {
       setError(err.message);
@@ -343,8 +322,6 @@ export default function Login() {
         setResetLoading(false);
         setCooldown(null);
         localStorage.removeItem("lastResetRequest");
-        // Juga bersihkan OAuth state
-        sessionStorage.removeItem('oauth_state');
       }
     });
     return () => {
@@ -354,9 +331,10 @@ export default function Login() {
 
   return (
     <div className="container" style={{
-    width: "100%",
+      width: "100%",
       maxWidth: "600px",
-    padding: "2rem" }}>
+      padding: "2rem"
+    }}>
       
       <Link 
         to="/" 
