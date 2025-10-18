@@ -42,7 +42,7 @@ export default function Register() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + "/login",
+          redirectTo: "https://tahfidzku.vercel.app/app2",
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
