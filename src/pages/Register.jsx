@@ -35,7 +35,7 @@ export default function Register() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${from}`,
+          redirectTo: "https://tahfidzku.vercel.app/login",
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -114,8 +114,8 @@ export default function Register() {
 
               await UserStorage.migrateGuestToUser(session, deviceUUID);
 
-              setGoogleLoading(false);
-              navigate(from, { replace: true });
+                            // ✅ Redirect to app
+              navigate("/app2", { replace: true });
 
             } catch (err) {
               console.error("Error handling Google signup:", err);

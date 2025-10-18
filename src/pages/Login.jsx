@@ -68,7 +68,7 @@ export default function Login() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `redirectTo: "https://tahfidzku.vercel.app/login"`,
+          redirectTo: "https://tahfidzku.vercel.app/login",
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
