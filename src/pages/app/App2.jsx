@@ -85,6 +85,13 @@ function App2({ session }) {
       // Tidak ada redirect otomatis lagi
     }
   }, [loading, userStatus, session]);
+  
+  
+  useEffect(() => {
+  if (window.location.hash) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}, []);
 
   // ✅ CEK SESSION SAAT KOMPONEN MOUNT
   useEffect(() => {
