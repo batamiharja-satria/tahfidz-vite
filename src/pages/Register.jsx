@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { UserStorage } from "./app/utils/userStorage"; // ✅ IMPORT BARU
+import { UserStorage } from "./app/utils/userStorage";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -10,6 +10,8 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  
   const navigate = useNavigate();
   const location = useLocation();
   const [deviceUUID, setDeviceUUID] = useState("");
@@ -18,12 +20,116 @@ export default function Register() {
 
   useEffect(() => {
     const initializeDeviceUUID = async () => {
-      // ✅ GUNAKAN FUNGSI ASYNC KHUSUS
       const uuid = await UserStorage.getPersistentDeviceUUIDAsync();
       setDeviceUUID(uuid);
     };
     initializeDeviceUUID();
   }, []);
+
+  // ✅ Handle Google Register/Login
+  const handleGoogleRegister = async () => {
+    setGoogleLoading(true);
+    setError("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}${from}`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      });
+
+      if (error) throw error;
+
+    } catch (err) {
+      setError(err.message);
+      setGoogleLoading(false);
+    }
+  };
+
+  // ✅ Listen for auth state changes untuk Google signup
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const user = session.user;
+          
+          const isGoogleUser = user.app_metadata?.provider === 'google' || 
+                              user.identities?.some(identity => identity.provider === 'google');
+
+          if (isGoogleUser) {
+            try {
+              const { data: existingProfile, error: profileError } = await supabase
+                .from("profiles")
+                .select("id, device_uuid")
+                .eq("email", user.email)
+                .maybeSingle();
+
+              if (profileError) throw profileError;
+
+              if (!existingProfile) {
+                const { error: insertError } = await supabase
+                  .from("profiles")
+                  .insert({
+                    id: user.id,
+                    email: user.email,
+                    device_uuid: deviceUUID,
+                    status: [false, false, false, false, false, false, false, true, true, true],
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  });
+
+                if (insertError) {
+                  if (insertError.code === '23505') {
+                    const { error: updateError } = await supabase
+                      .from("profiles")
+                      .update({ 
+                        device_uuid: deviceUUID,
+                        updated_at: new Date().toISOString()
+                      })
+                      .eq("email", user.email);
+
+                    if (updateError) throw updateError;
+                  } else {
+                    throw insertError;
+                  }
+                }
+              } else {
+                if (existingProfile.device_uuid && existingProfile.device_uuid !== deviceUUID) {
+                  await supabase.auth.signOut();
+                  throw new Error("Akun Google ini terdaftar di device lain. Gunakan device yang sama.");
+                }
+
+                if (!existingProfile.device_uuid) {
+                  await supabase
+                    .from("profiles")
+                    .update({ device_uuid: deviceUUID })
+                    .eq("email", user.email);
+                }
+              }
+
+              await UserStorage.migrateGuestToUser(session, deviceUUID);
+
+              setGoogleLoading(false);
+              navigate(from, { replace: true });
+
+            } catch (err) {
+              console.error("Error handling Google signup:", err);
+              setError(err.message);
+              setGoogleLoading(false);
+              await supabase.auth.signOut();
+            }
+          }
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, [deviceUUID, navigate, from]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -69,6 +175,7 @@ export default function Register() {
         const { error: profileError } = await supabase
           .from("profiles")
           .insert({ 
+            id: authData.user.id,
             email: email,
             device_uuid: deviceUUID,
             status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
@@ -112,28 +219,28 @@ export default function Register() {
 
   return (
     <div className="container" style={{
-width: "100%",
+      width: "100%",
       maxWidth: "600px",
-    padding: "2rem" }}>
+      padding: "2rem"
+    }}>
       
-      
-<Link 
-  to="/" 
-  style={{
-    padding: '0px 0px',
-    background: '',
-    color: 'black',
-    border: 'none',
-    borderRadius: '0px',
-    textDecoration: 'none',
-    fontSize: '1.5rem', // ✅ TAMBAH INI - ukuran lebih besar
-    fontWeight: 'bold',  // ✅ OPSIONAL - biar lebih tebal
-    display: 'inline-block',
-    lineHeight: '1'
-  }}
->
-  ← 
-</Link>
+      <Link 
+        to="/" 
+        style={{
+          padding: '0px 0px',
+          background: '',
+          color: 'black',
+          border: 'none',
+          borderRadius: '0px',
+          textDecoration: 'none',
+          fontSize: '1.5rem',
+          fontWeight: 'bold',
+          display: 'inline-block',
+          lineHeight: '1'
+        }}
+      >
+        ← 
+      </Link>
       
       <div style={{ textAlign: "center", padding: "0rem" }}>
         <img
@@ -146,6 +253,72 @@ width: "100%",
         <h3>Daftar</h3>
       </center>
       <br />
+
+      {/* ✅ TOMBOL GOOGLE */}
+      <div style={{ marginBottom: "1rem" }}>
+        <button
+          className="btn btn-secondary"
+          onClick={handleGoogleRegister}
+          disabled={googleLoading}
+          style={{ 
+            width: "100%", 
+            display: "flex", 
+            alignItems: "center", 
+            justifyContent: "center",
+            gap: "0.5rem",
+            padding: "0.75rem 1rem",
+            border: "1px solid #ddd",
+            borderRadius: "8px",
+            backgroundColor: "white",
+            color: "#333",
+            fontSize: "1rem",
+            cursor: googleLoading ? "not-allowed" : "pointer",
+            opacity: googleLoading ? 0.7 : 1
+          }}
+        >
+          {googleLoading ? (
+            <>
+              <div
+                style={{
+                  width: "16px",
+                  height: "16px",
+                  border: "2px solid #ccc",
+                  borderTop: "2px solid #4285f4",
+                  borderRadius: "50%",
+                  display: "inline-block",
+                  animation: "spin 1s linear infinite"
+                }}
+              />
+              Loading...
+            </>
+          ) : (
+            <>
+              <img 
+                src="https://developers.google.com/identity/images/g-logo.png" 
+                alt="Google" 
+                style={{ width: "20px", height: "20px" }}
+              />
+              Daftar dengan Google
+            </>
+          )}
+        </button>
+      </div>
+
+      <div style={{ textAlign: "center", margin: "1rem 0", position: "relative" }}>
+        <hr style={{ margin: "1.5rem 0", border: "none", borderTop: "1px solid #ddd" }} />
+        <span style={{ 
+          background: "white", 
+          padding: "0 1rem", 
+          position: "absolute", 
+          top: "50%", 
+          left: "50%", 
+          transform: "translate(-50%, -50%)",
+          color: "#666",
+          fontSize: "0.9rem"
+        }}>
+          atau
+        </span>
+      </div>
 
       <form
         style={{ marginBottom: "0.5rem" }}
@@ -203,23 +376,31 @@ width: "100%",
       {error && <p style={{ color: "red" }}>{error}</p>}
       {info && <p style={{ color: "green" }}>{info}</p>}
       
-                        <Link 
-          to="/admin" 
-          style={{
-            border: 'none',
-            background: "white",
-            color: "white",
-            textDecoration: "none",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            display: 'flex',
-            justifyContent: 'end' ,
-            
+      <Link 
+        to="/admin" 
+        style={{
+          border: 'none',
+          background: "white",
+          color: "white",
+          textDecoration: "none",
+          borderRadius: "6px",
+          fontWeight: "bold",
+          display: 'flex',
+          justifyContent: 'end',
           lineHeight: '1'
-          }}
-        >
-          🔧 
-        </Link>
+        }}
+      >
+        🔧 
+      </Link>
+
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       
     </div>
   );
