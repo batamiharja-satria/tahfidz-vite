@@ -59,19 +59,27 @@ export default function Login() {
     return () => clearInterval(timer);
   }, [cooldown]);
 
-  // ✅ Handle Google Login
+  // ✅ PERBAIKAN: Handle Google Login dengan state management yang lebih baik
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     setError("");
 
     try {
+      // Generate unique state parameter untuk mencegah CSRF
+      const state = Math.random().toString(36).substring(2, 15) + 
+                   Math.random().toString(36).substring(2, 15);
+      
+      // Simpan state di sessionStorage untuk validasi nanti
+      sessionStorage.setItem('oauth_state', state);
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: "https://tahfidzku.vercel.app/login",
+          redirectTo: window.location.origin + "/login",
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
+            state: state // Tambahkan state parameter
           }
         }
       });
@@ -81,87 +89,156 @@ export default function Login() {
     } catch (err) {
       setError(err.message);
       setGoogleLoading(false);
+      // Bersihkan state jika error
+      sessionStorage.removeItem('oauth_state');
     }
   };
 
-  // ✅ Listen for auth state changes to handle Google signup
+  // ✅ PERBAIKAN: Handle OAuth callback ketika kembali ke halaman login
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const error = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
+      
+      // Jika ada error OAuth di URL, tampilkan dan bersihkan URL
+      if (error) {
+        console.error('OAuth Error:', error, errorDescription);
+        
+        if (error === 'invalid_request' && errorDescription?.includes('bad_oauth_state')) {
+          setError("Session login telah kadaluarsa. Silakan coba login lagi.");
+        } else {
+          setError(`Error login: ${errorDescription || error}`);
+        }
+        
+        // Bersihkan URL dari parameter error
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+
+      // Cek jika ini adalah redirect dari OAuth (ada code di URL)
+      const code = urlParams.get('code');
+      if (code) {
+        setGoogleLoading(true);
+        try {
+          // Dapatkan session current user
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) throw sessionError;
+          
+          if (session?.user) {
+            await handleGoogleUser(session.user);
+          }
+        } catch (err) {
+          console.error("Error handling OAuth callback:", err);
+          setError(err.message);
+          await supabase.auth.signOut();
+        } finally {
+          setGoogleLoading(false);
+          // Bersihkan URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, [deviceUUID, navigate]);
+
+  // ✅ PERBAIKAN: Pisahkan logic handling Google user untuk reusable
+  const handleGoogleUser = async (user) => {
+    try {
+      // ✅ Check if user signed in with Google (OAuth)
+      const isGoogleUser = user.app_metadata?.provider === 'google' || 
+                          user.identities?.some(identity => identity.provider === 'google');
+
+      if (!isGoogleUser) return;
+
+      // ✅ Check if profile already exists
+      const { data: existingProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, device_uuid")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      // ✅ If profile doesn't exist, create one (Google signup)
+      if (!existingProfile) {
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            email: user.email,
+            device_uuid: deviceUUID,
+            status: [false, false, false, false, false, false, false, true, true, true],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          // If insert fails due to duplicate, try update
+          if (insertError.code === '23505') {
+            const { error: updateError } = await supabase
+              .from("profiles")
+              .update({ 
+                device_uuid: deviceUUID,
+                updated_at: new Date().toISOString()
+              })
+              .eq("email", user.email);
+
+            if (updateError) throw updateError;
+          } else {
+            throw insertError;
+          }
+        }
+      } else {
+        // ✅ Profile exists, validate device UUID
+        if (existingProfile.device_uuid && existingProfile.device_uuid !== deviceUUID) {
+          await supabase.auth.signOut();
+          throw new Error("Akun Google ini terdaftar di device lain. Gunakan device yang sama.");
+        }
+
+        // ✅ Update device_uuid if not set
+        if (!existingProfile.device_uuid) {
+          await supabase
+            .from("profiles")
+            .update({ device_uuid: deviceUUID })
+            .eq("email", user.email);
+        }
+      }
+
+      // ✅ Migrate guest data
+      await UserStorage.migrateGuestToUser({ user }, deviceUUID);
+
+      // ✅ Redirect to app
+      navigate("/app2", { replace: true });
+      
+    } catch (err) {
+      console.error("Error handling Google user:", err);
+      throw err;
+    }
+  };
+
+  // ✅ PERBAIKAN: Listen for auth state changes (untuk non-OAuth flows)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Skip jika ini OAuth flow (sudah dihandle di atas)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('code')) return;
+
         if (event === 'SIGNED_IN' && session?.user) {
           const user = session.user;
           
-          // ✅ Check if user signed in with Google (OAuth)
           const isGoogleUser = user.app_metadata?.provider === 'google' || 
                               user.identities?.some(identity => identity.provider === 'google');
 
           if (isGoogleUser) {
             try {
-              // ✅ Check if profile already exists
-              const { data: existingProfile, error: profileError } = await supabase
-                .from("profiles")
-                .select("id, device_uuid")
-                .eq("email", user.email)
-                .maybeSingle();
-
-              if (profileError) throw profileError;
-
-              // ✅ If profile doesn't exist, create one (Google signup)
-              if (!existingProfile) {
-                const { error: insertError } = await supabase
-                  .from("profiles")
-                  .insert({
-                    id: user.id,
-                    email: user.email,
-                    device_uuid: deviceUUID,
-                    status: [false, false, false, false, false, false, false, true, true, true],
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  });
-
-                if (insertError) {
-                  // If insert fails due to duplicate, try update
-                  if (insertError.code === '23505') {
-                    const { error: updateError } = await supabase
-                      .from("profiles")
-                      .update({ 
-                        device_uuid: deviceUUID,
-                        updated_at: new Date().toISOString()
-                      })
-                      .eq("email", user.email);
-
-                    if (updateError) throw updateError;
-                  } else {
-                    throw insertError;
-                  }
-                }
-              } else {
-                // ✅ Profile exists, validate device UUID
-                if (existingProfile.device_uuid && existingProfile.device_uuid !== deviceUUID) {
-                  await supabase.auth.signOut();
-                  throw new Error("Akun Google ini terdaftar di device lain. Gunakan device yang sama.");
-                }
-
-                // ✅ Update device_uuid if not set
-                if (!existingProfile.device_uuid) {
-                  await supabase
-                    .from("profiles")
-                    .update({ device_uuid: deviceUUID })
-                    .eq("email", user.email);
-                }
-              }
-
-              // ✅ Migrate guest data
-              await UserStorage.migrateGuestToUser(session, deviceUUID);
-
-              setGoogleLoading(false);
-              
-              // ✅ Redirect to app
-              navigate("/app2", { replace: true });
+              await handleGoogleUser(user);
             } catch (err) {
               console.error("Error handling Google signup:", err);
               setError(err.message);
-              setGoogleLoading(false);
               await supabase.auth.signOut();
             }
           }
@@ -170,7 +247,7 @@ export default function Login() {
     );
 
     return () => subscription.unsubscribe();
-  }, [deviceUUID, navigate, from]);
+  }, [deviceUUID, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -266,6 +343,8 @@ export default function Login() {
         setResetLoading(false);
         setCooldown(null);
         localStorage.removeItem("lastResetRequest");
+        // Juga bersihkan OAuth state
+        sessionStorage.removeItem('oauth_state');
       }
     });
     return () => {
@@ -342,7 +421,7 @@ export default function Login() {
                   animation: "spin 1s linear infinite"
                 }}
               />
-              Loading...
+              Memproses...
             </>
           ) : (
             <>
