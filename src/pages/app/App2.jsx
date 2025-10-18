@@ -16,19 +16,163 @@ function App2({ session }) {
   // ✅ PERBAIKAN: Default userStatus untuk guest
   const defaultGuestStatus = [false,false,false,false,false,false,false,true,true,true];
 
+  // ✅ FIX: Handle OAuth callback di App2 - INI YANG PERLU DITAMBAHKAN
+  useEffect(() => {
+    const handleOAuthCallback = async () => {
+      console.log("🔍 Checking OAuth callback in App2...");
+      
+      // Cek jika ada fragment (hash) di URL - ini dari OAuth redirect
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        console.log("📥 Processing OAuth fragment callback in App2");
+        
+        try {
+          // Parse the fragment (hash) parameters
+          const fragmentParams = new URLSearchParams(window.location.hash.substring(1));
+          const accessToken = fragmentParams.get('access_token');
+          const refreshToken = fragmentParams.get('refresh_token');
+          
+          if (accessToken) {
+            console.log("🔑 Setting session from fragment tokens in App2");
+            
+            // Set the session using the tokens from fragment
+            const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (sessionError) {
+              console.error("Error setting session in App2:", sessionError);
+              throw sessionError;
+            }
+
+            if (session?.user) {
+              console.log("✅ User authenticated via OAuth fragment in App2:", session.user.email);
+              
+              // ✅ Handle Google user data
+              await handleGoogleUserInApp2(session.user);
+              
+              // ✅ Clean URL setelah berhasil
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Error handling OAuth fragment in App2:", err);
+          // Tampilkan error ke user jika needed
+        }
+      }
+    };
+
+    handleOAuthCallback();
+  }, []);
+
+  // ✅ FIX: Function untuk handle Google user di App2
+  const handleGoogleUserInApp2 = async (user) => {
+    try {
+      console.log("👤 Handling Google user in App2:", user.email);
+      const currentDeviceUUID = await UserStorage.getPersistentDeviceUUIDAsync();
+      console.log("📱 Using Device UUID in App2:", currentDeviceUUID);
+      
+      // ✅ Check if profile already exists
+      const { data: existingProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, device_uuid, status")
+        .eq("email", user.email)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("❌ Error checking profile in App2:", profileError);
+        throw profileError;
+      }
+
+      console.log("📋 Existing profile in App2:", existingProfile);
+
+      const statusArray = [false, false, false, false, false, false, false, true, true, true];
+
+      // ✅ If profile doesn't exist, create one (Google signup)
+      if (!existingProfile) {
+        console.log("📝 Creating new profile for Google user in App2");
+        
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            email: user.email,
+            device_uuid: currentDeviceUUID,
+            status: statusArray,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          console.error("❌ Profile insert error in App2:", insertError);
+          throw insertError;
+        } else {
+          console.log("✅ Profile inserted successfully in App2");
+        }
+      } else {
+        console.log("✅ Profile exists in App2, validating device...");
+        
+        // ✅ Update device_uuid jika tidak sesuai
+        if (!existingProfile.device_uuid || existingProfile.device_uuid !== currentDeviceUUID) {
+          console.log("🔄 Updating device UUID for existing profile in App2");
+          const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ 
+              device_uuid: currentDeviceUUID,
+              updated_at: new Date().toISOString()
+            })
+            .eq("email", user.email);
+
+          if (updateError) {
+            console.error("❌ Error updating device UUID in App2:", updateError);
+          } else {
+            console.log("✅ Device UUID updated successfully in App2");
+          }
+        }
+
+        // ✅ Update status jika tidak sesuai format
+        if (!existingProfile.status || existingProfile.status.length !== 10) {
+          console.log("🔄 Fixing status array format in App2");
+          const { error: statusError } = await supabase
+            .from("profiles")
+            .update({ 
+              status: statusArray,
+              updated_at: new Date().toISOString()
+            })
+            .eq("email", user.email);
+
+          if (statusError) {
+            console.error("❌ Error fixing status in App2:", statusError);
+          } else {
+            console.log("✅ Status array fixed in App2");
+          }
+        }
+      }
+
+      // ✅ Migrate guest data
+      console.log("🔄 Migrating guest data in App2...");
+      await UserStorage.migrateGuestToUser({ user }, currentDeviceUUID);
+
+      console.log("✅ Google OAuth handling completed successfully in App2");
+      
+      // ✅ Set user status setelah berhasil
+      setUserStatus(statusArray);
+      
+    } catch (err) {
+      console.error("❌ Error handling Google user in App2:", err);
+      throw err;
+    }
+  };
+
   // ✅ UPDATE: AMBIL STATUS USER dengan handling yang lebih robust
   useEffect(() => {
     const fetchUserStatus = async () => {
       try {
-        if (session) {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) {
-            setUserStatus(defaultGuestStatus);
-            setLoading(false);
-            return;
-          }
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          console.log("🔄 Fetching user status for:", user.email);
 
-          // ✅ GUNAKAN FUNGSI ASYNC UNTUK DEVICE VALIDATION
           const currentDeviceUUID = await UserStorage.getPersistentDeviceUUIDAsync();
           
           // ✅ CEK DEVICE UUID DI DATABASE
@@ -53,15 +197,19 @@ function App2({ session }) {
 
             // ✅ SET USER STATUS JIKA VALID
             if (profileData.status && Array.isArray(profileData.status)) {
+              console.log("✅ Setting user status from profile:", profileData.status);
               setUserStatus(profileData.status);
             } else {
+              console.log("⚠️ Using default status - profile status invalid");
               setUserStatus(defaultGuestStatus);
             }
           } else {
+            console.log("⚠️ Using default status - no profile found");
             setUserStatus(defaultGuestStatus);
           }
         } else {
           // ✅ SET DEFAULT UNTUK GUEST dengan pasti
+          console.log("👤 Guest user - using default status");
           setUserStatus(defaultGuestStatus);
         }
       } catch (err) {
@@ -72,7 +220,12 @@ function App2({ session }) {
       }
     };
 
-    fetchUserStatus();
+    // Delay sedikit untuk memastikan OAuth callback selesai
+    const timer = setTimeout(() => {
+      fetchUserStatus();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [session]);
 
   // ✅ PERBAIKAN: Handle navigation dengan userStatus yang sudah ter-initialize
@@ -81,17 +234,18 @@ function App2({ session }) {
       // ✅ INIT DEFAULT DATA UNTUK GUEST ATAU USER
       UserStorage.initializeDefaultData(session);
       
-      // ✅ HAPUS REDIRECT OTOMATIS KE FITUR1 - BIARKAN USER DI BERANDA
-      // Tidak ada redirect otomatis lagi
+      console.log("✅ App2 ready - User status:", userStatus);
+      console.log("✅ App2 ready - Session:", session ? "Authenticated" : "Guest");
     }
   }, [loading, userStatus, session]);
   
-  
+  // ✅ Clean URL hash
   useEffect(() => {
-  if (window.location.hash) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-}, []);
+    if (window.location.hash) {
+      console.log("🧹 Cleaning URL hash in App2");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // ✅ CEK SESSION SAAT KOMPONEN MOUNT
   useEffect(() => {

@@ -322,55 +322,88 @@ export const UserStorage = {
     }
   },
 
-  // ✅ FUNGSI BARU: Migrate data dari guest ke user saat login (FULL VERSION)
-  migrateGuestToUser: async (session, guestDeviceUUID) => {
+  // ✅ PERBAIKAN BESAR: Migrate data dari guest ke user saat login (OPTIMIZED FOR OAUTH)
+  migrateGuestToUser: async ({ user }, deviceUUID) => {
     try {
-      if (!session || !guestDeviceUUID) return;
+      console.log('🔄 Starting migration for Google OAuth user:', user.email);
       
-      const guestIdentifier = `guest_${guestDeviceUUID}`;
-      const userIdentifier = UserStorage.getUserIdentifier(session);
+      if (!user || !deviceUUID) {
+        console.error('❌ Migration failed: Missing user or deviceUUID');
+        return 0;
+      }
+
+      const guestIdentifier = `guest_${deviceUUID}`;
+      const userIdentifier = `user_${user.id}_${deviceUUID}`;
       
       console.log('🔄 Migrating data from:', guestIdentifier, 'to:', userIdentifier);
       
       let migratedCount = 0;
+      const startTime = Date.now();
       
-      // Migrasi dari localStorage
+      // ✅ OPTIMIZED: Batch migration untuk localStorage
+      const keysToMigrate = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.includes(guestIdentifier)) {
+          // Prioritaskan data penting: hafalan, history, scroll
+          if (key.includes('hafalan') || key.includes('last_page') || key.includes('scroll_')) {
+            keysToMigrate.push(key);
+          }
+        }
+      }
+      
+      // Eksekusi migrasi
+      keysToMigrate.forEach(key => {
+        try {
           const value = localStorage.getItem(key);
           const newKey = key.replace(guestIdentifier, userIdentifier);
-          
-          // Migrasikan data hafalan, history, dan scroll
-          if (key.includes('hafalan') || key.includes('last_page') || key.includes('scroll_')) {
-            localStorage.setItem(newKey, value);
-            migratedCount++;
-            console.log('✅ Migrated localStorage:', key, '→', newKey);
-          }
+          localStorage.setItem(newKey, value);
+          migratedCount++;
+          console.log('✅ Migrated localStorage:', key, '→', newKey);
+        } catch (error) {
+          console.error('❌ Failed to migrate key:', key, error);
         }
-      }
+      });
       
-      // Migrasi dari IndexedDB
+      // ✅ OPTIMIZED: IndexedDB migration dengan error handling
       try {
-        const indexedDBData = await UserStorage._getAllFromIndexedDB();
-        for (const [key, value] of Object.entries(indexedDBData)) {
-          if (key.includes(guestIdentifier)) {
-            const newKey = key.replace(guestIdentifier, userIdentifier);
-            if (key.includes('hafalan') || key.includes('last_page') || key.includes('scroll_')) {
-              await UserStorage._setInIndexedDB(newKey, value);
-              migratedCount++;
-              console.log('✅ Migrated IndexedDB:', key, '→', newKey);
+        if (window.indexedDB) {
+          const indexedDBData = await UserStorage._getAllFromIndexedDB();
+          const indexedDBPromises = [];
+          
+          for (const [key, value] of Object.entries(indexedDBData)) {
+            if (key.includes(guestIdentifier)) {
+              const newKey = key.replace(guestIdentifier, userIdentifier);
+              if (key.includes('hafalan') || key.includes('last_page') || key.includes('scroll_')) {
+                indexedDBPromises.push(
+                  UserStorage._setInIndexedDB(newKey, value)
+                    .then(() => {
+                      migratedCount++;
+                      console.log('✅ Migrated IndexedDB:', key, '→', newKey);
+                    })
+                    .catch(error => {
+                      console.error('❌ Failed to migrate IndexedDB key:', key, error);
+                    })
+                );
+              }
             }
           }
+          
+          await Promise.allSettled(indexedDBPromises);
         }
       } catch (indexedDBError) {
-        console.warn('IndexedDB migration skipped:', indexedDBError);
+        console.warn('⚠️ IndexedDB migration skipped:', indexedDBError);
       }
       
-      console.log(`✅ Total migrated ${migratedCount} items from guest to user`);
+      const migrationTime = Date.now() - startTime;
+      console.log(`✅ Migration completed in ${migrationTime}ms: ${migratedCount} items migrated`);
+      
+      // ✅ Setelah migration, initialize default data untuk user
+      UserStorage.initializeDefaultData({ user });
+      
       return migratedCount;
     } catch (error) {
-      console.error('Error migrateGuestToUser:', error);
+      console.error('❌ Error in migrateGuestToUser:', error);
       return 0;
     }
   },
@@ -389,6 +422,29 @@ export const UserStorage = {
     } catch (error) {
       console.error('Error validateDeviceWithSession:', error);
       return null;
+    }
+  },
+
+  // ✅ FUNGSI BARU: Untuk Google OAuth - Validasi dan setup user data
+  setupGoogleUserData: async (user, deviceUUID) => {
+    try {
+      console.log('🔄 Setting up Google user data for:', user.email);
+      
+      // Pastikan device UUID konsisten
+      const currentDeviceUUID = await UserStorage.getPersistentDeviceUUID();
+      if (deviceUUID !== currentDeviceUUID) {
+        console.warn('⚠️ Device UUID mismatch, updating to persistent UUID');
+        deviceUUID = currentDeviceUUID;
+      }
+      
+      // Initialize default data untuk user Google
+      UserStorage.initializeDefaultData({ user });
+      
+      console.log('✅ Google user data setup completed');
+      return true;
+    } catch (error) {
+      console.error('❌ Error setting up Google user data:', error);
+      return false;
     }
   },
 
@@ -459,6 +515,35 @@ export const UserStorage = {
     } catch (error) {
       console.error('LocalStorage not available:', error);
       return false;
+    }
+  },
+
+  // ✅ FUNGSI BARU: Get user stats untuk debug
+  getUserStats: (session) => {
+    try {
+      const userIdentifier = UserStorage.getUserIdentifier(session);
+      const stats = {
+        totalItems: 0,
+        hafalanCount: 0,
+        historyCount: 0,
+        scrollCount: 0
+      };
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes(userIdentifier)) {
+          stats.totalItems++;
+          if (key.includes('hafalan')) stats.hafalanCount++;
+          if (key.includes('last_page')) stats.historyCount++;
+          if (key.includes('scroll_')) stats.scrollCount++;
+        }
+      }
+      
+      console.log('📊 User Storage Stats:', stats);
+      return stats;
+    } catch (error) {
+      console.error('Error getUserStats:', error);
+      return {};
     }
   }
 };

@@ -21,12 +21,13 @@ export default function Register() {
   useEffect(() => {
     const initializeDeviceUUID = async () => {
       const uuid = await UserStorage.getPersistentDeviceUUIDAsync();
+      console.log("📱 Device UUID initialized:", uuid);
       setDeviceUUID(uuid);
     };
     initializeDeviceUUID();
   }, []);
 
-  // ✅ PERBAIKAN: Handle Google Register yang lebih robust
+  // ✅ FIX: Google Register dengan redirect langsung ke /app2
   const handleGoogleRegister = async () => {
     setGoogleLoading(true);
     setError("");
@@ -35,7 +36,7 @@ export default function Register() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}${window.location.pathname}`,
+          redirectTo: `${window.location.origin}/app2`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -52,120 +53,34 @@ export default function Register() {
     }
   };
 
-  // ✅ PERBAIKAN: Handle auth state dengan approach yang lebih sederhana
+  // ✅ Listen for auth state changes (untuk non-OAuth flows)
   useEffect(() => {
-    const handleAuthState = async () => {
-      // Cek jika ada error di URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const error = urlParams.get('error');
-      const errorDescription = urlParams.get('error_description');
-      
-      if (error) {
-        console.error('OAuth Error:', error, errorDescription);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("🔄 Auth state changed for register:", event);
         
-        if (error === 'invalid_request' && errorDescription?.includes('bad_oauth_state')) {
-          setError("Session pendaftaran telah kadaluarsa. Silakan coba daftar lagi.");
-        } else {
-          setError(`Error pendaftaran: ${errorDescription || error}`);
-        }
-        
-        // Bersihkan URL
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
+        if (event === 'SIGNED_IN' && session?.user) {
+          const user = session.user;
+          
+          const isGoogleUser = user.app_metadata?.provider === 'google' || 
+                              user.identities?.some(identity => identity.provider === 'google');
 
-      // Cek jika user sudah login (setelah OAuth redirect)
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        const isGoogleUser = session.user.app_metadata?.provider === 'google' || 
-                           session.user.identities?.some(identity => identity.provider === 'google');
-
-        if (isGoogleUser) {
-          try {
-            await handleGoogleUser(session.user);
-            // Bersihkan URL setelah berhasil register
-            window.history.replaceState({}, document.title, window.location.pathname);
-          } catch (err) {
-            console.error("Error handling Google user:", err);
-            setError(err.message);
-            await supabase.auth.signOut();
+          // Only handle non-Google users here (untuk email registration)
+          if (!isGoogleUser) {
+            try {
+              console.log("Regular email user registered - waiting for verification");
+            } catch (err) {
+              console.error("Error handling regular registration:", err);
+              setError(err.message);
+              await supabase.auth.signOut();
+            }
           }
         }
       }
-    };
+    );
 
-    handleAuthState();
+    return () => subscription.unsubscribe();
   }, [deviceUUID, navigate]);
-
-  // ✅ PERBAIKAN: Handle Google user data
-  const handleGoogleUser = async (user) => {
-    try {
-      // ✅ Check if profile already exists
-      const { data: existingProfile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, device_uuid")
-        .eq("email", user.email)
-        .maybeSingle();
-
-      if (profileError) throw profileError;
-
-      // ✅ If profile doesn't exist, create one (Google signup)
-      if (!existingProfile) {
-        const { error: insertError } = await supabase
-          .from("profiles")
-          .insert({
-            id: user.id,
-            email: user.email,
-            device_uuid: deviceUUID,
-            status: [false, false, false, false, false, false, false, true, true, true],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (insertError) {
-          // If insert fails due to duplicate, try update
-          if (insertError.code === '23505') {
-            const { error: updateError } = await supabase
-              .from("profiles")
-              .update({ 
-                device_uuid: deviceUUID,
-                updated_at: new Date().toISOString()
-              })
-              .eq("email", user.email);
-
-            if (updateError) throw updateError;
-          } else {
-            throw insertError;
-          }
-        }
-      } else {
-        // ✅ Profile exists, validate device UUID
-        if (existingProfile.device_uuid && existingProfile.device_uuid !== deviceUUID) {
-          await supabase.auth.signOut();
-          throw new Error("Akun Google ini terdaftar di device lain. Gunakan device yang sama.");
-        }
-
-        // ✅ Update device_uuid if not set
-        if (!existingProfile.device_uuid) {
-          await supabase
-            .from("profiles")
-            .update({ device_uuid: deviceUUID })
-            .eq("email", user.email);
-        }
-      }
-
-      // ✅ Migrate guest data
-      await UserStorage.migrateGuestToUser({ user }, deviceUUID);
-
-      // ✅ Redirect to app
-      navigate("/app2", { replace: true });
-      
-    } catch (err) {
-      console.error("Error handling Google user:", err);
-      throw err;
-    }
-  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -208,29 +123,21 @@ export default function Register() {
 
       if (authData?.user) {
         // ✅ Insert baru dengan status default yang eksplisit
+        const statusArray = [false, false, false, false, false, false, false, true, true, true];
+        console.log("📊 Setting status array for email registration:", statusArray);
+        
         const { error: profileError } = await supabase
           .from("profiles")
           .insert({ 
             id: authData.user.id,
             email: email,
             device_uuid: deviceUUID,
-            status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
+            status: statusArray
           });
 
         if (profileError) {
           console.error("Error creating profile:", profileError);
-          // Jika error karena row sudah ada, try update
-          const { error: updateError } = await supabase
-            .from("profiles")
-            .update({ 
-              device_uuid: deviceUUID,
-              status: [false,false,false,false,false,false,false,true,true,true] // ✅ FORCE DEFAULT
-            })
-            .eq("email", email);
-            
-          if (updateError) {
-            console.error("Error updating profile:", updateError);
-          }
+          throw profileError;
         }
 
         setInfo("Silakan cek email Anda dan lakukan verifikasi sebelum login.");
